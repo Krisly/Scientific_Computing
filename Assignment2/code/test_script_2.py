@@ -24,14 +24,14 @@ plt.rc('figure', titlesize=font_size)  # # size of the figure title
 numsolv1 = numerical_solvers()
 #vander_pol = numsolv1(1,3,5)
 #print(sol1,sol2)
-mu = 10.0
+mu = 100
 x0 = np.array([2.0,0.0])
 t0 = 0
-t1 = 5*mu
+t1 = 10
 dt = 0.01
 t = np.arange(t0,t1+dt,dt)
-absTol=10**(-5)
-relTol=1*10**(-3)
+absTol=10**(-8)
+relTol=10**(-3)
 epstol=0.8
 
 sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac,
@@ -42,8 +42,8 @@ sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac,
                                     mu)
 
 a_sol_T,a_sol_X,a_ss = numsolv1.ImplicitEulerAdaptiveStepSize(numsolv1.VanderPolfunjac,
-                                                              0,
-                                                              10,
+                                                              t0,
+                                                              t1,
                                                               x0.T,
                                                               dt,
                                                               absTol,
@@ -55,7 +55,7 @@ r = ode(numsolv1.VanDerPol,
         numsolv1.JacVanDerPol).set_integrator('vode',
                                               method='bdf',
                                               order=15)
- 
+
 r.set_initial_value(x0, t0).set_f_params(mu).set_jac_params(mu)
 
 x = [[],[]]
@@ -73,9 +73,11 @@ plt.legend(loc='lower left')
 plt.figure()
 plt.plot(t, x[1],label='Scipy Solver')
 plt.plot(sol_T, sol_X[:,1],label='Implicit Euler')
+plt.plot(a_sol_T, a_sol_X[:,1],label='Implicit Euler adaptive step')
 plt.legend(loc='lower left')
 plt.figure()
 plt.plot(x[0],x[1],label='Scipy solver')
 plt.plot(sol_X[:,0],sol_X[:,1],label='Implicit Euler')
+plt.plot(a_sol_X[:,0], a_sol_X[:,1],label='Implicit Euler adaptive step')
 plt.legend(loc='lower left')
 plt.figure()

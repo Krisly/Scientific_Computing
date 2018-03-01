@@ -95,64 +95,84 @@ class numerical_solvers(object):
         return self.T,self.X
    
     def ImplicitEulerAdaptiveStepSize(self,fun,ta,tb,xa,h,absTol,relTol,
-                                      epstol,kwargs=None):
+                                      epstol,kwargs):
         t=ta
         self.h = h
         self.x = xa
         self.facmin = 0.1
-        self.facmax = 1
+        self.facmax = 5
         self.T = np.array([t])
-        self.X = np.array([self.x])
+        self.X = list()
+        self.X += [self.x]
         self.ss =np.array([self.h])
+        #print(type(self.X))
+        
         while t < tb:
-            if(self.t+self.h>tb):
+            if(t+self.h>tb):
                 self.h = tb-t
                 
-            self.f,self.na = fun(t,xa,kwargs)
-            print(self.f)
+            self.f,self.na = fun(t,self.x,kwargs)
+            #print(self.f)
             self.AcceptStep = False
+
             while not self.AcceptStep:
+                #print(self.x1)                
                 self.x1 = self.x + np.transpose(self.h*self.f)
-                #print(self.x1)
                 self.x1 = self.NewtonsMethodODE(fun,
                                                 t,
                                                 self.x1,
                                                 self.h,
-                                                xa.T,
+                                                self.x.T,
                                                 absTol,
                                                 100,
                                                 kwargs)
                 
                 self.hm = 0.5*self.h
                 self.tm = t + self.hm
-                self.xm = self.x + np.transpose(self.hm*self.f)
+                self.fm,self.na = fun(self.tm,self.x,kwargs)
+                self.x1hat = self.x + np.transpose(self.hm*self.fm)
                 self.x1hat = self.NewtonsMethodODE(fun,
-                                                   t,
-                                                   self.x1,
-                                                   self.h,
-                                                   xa.T,
+                                                   self.tm,
+                                                   self.x1hat,
+                                                   self.hm,
+                                                   self.x,
                                                    absTol,
                                                    100,
                                                    kwargs)
                 
-                self.e = self.x1hat - self.x1
-                print(self.e)
-                self.r = np.max(np.abs(self.e)/np.max([absTol,np.amax(self.x1hat*relTol)]))
+                self.x1hat = self.x1hat + np.transpose(self.hm*self.f)
+                self.x1hat = self.NewtonsMethodODE(fun,
+                                                   t,
+                                                   self.x1hat,
+                                                   self.hm,
+                                                   self.x,
+                                                   absTol,
+                                                   100,
+                                                   kwargs)
     
+#                print(self.x1hat)
+                self.e = self.x1hat - self.x1
+
+                self.r = np.max(np.abs(self.e)/np.max([absTol,
+                                np.max(np.abs(self.x1hat)*relTol)]))
+  #              print(self.x1hat,t)
+  #              print(np.abs(self.e),self.r,t)
                 self.AcceptStep = (self.r <= 1)
-                print("Timestep: {} and r value: {}".format(t,self.r))
+               # print("Timestep: {} and r value: {}".format(t,self.r))
                 if self.AcceptStep:
                     t =t+self.h
                     self.x = self.x1hat
-                    
                     self.T = np.append(self.T,t)
-                    self.X = np.append(self.X,self.x)
+               #     print(self.x)
+              #      print(type(self.X))
+                    self.X += [self.x]
                     self.ss =np.append(self.ss,self.h)
                     
                 self.h = np.max([self.facmin,
-                                np.sqrt(epstol)/self.r*self.facmax])*self.h
+                                np.min([np.sqrt(epstol/self.r),
+                                        self.facmax])])*self.h
                                 
-        return self.T,self.X,self.h
+        return np.asarray(self.T),np.asarray(self.X),self.ss
                                 
                 
             
