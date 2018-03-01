@@ -96,80 +96,81 @@ class numerical_solvers(object):
    
     def ImplicitEulerAdaptiveStepSize(self,fun,ta,tb,xa,h,absTol,relTol,
                                       epstol,kwargs):
-        t=ta
+        self.t=ta
         self.h = h
         self.x = xa
         self.facmin = 0.1
         self.facmax = 5
-        self.T = np.array([t])
+        self.T = np.array([self.t])
         self.X = list()
         self.X += [self.x]
         self.ss =np.array([self.h])
+        self.epstol = epstol
+        self.absTol = absTol
+        self.relTol = relTol
+        self.tb=tb
+        self.kwargs = kwargs
         #print(type(self.X))
         
-        while t < tb:
-            if(t+self.h>tb):
-                self.h = tb-t
+        while self.t < self.tb:
+            if(self.t+self.h>self.tb):
+                self.h = self.tb-self.t
                 
-            self.f,self.na = fun(t,self.x,kwargs)
+            self.f,self.na = fun(self.t,self.x,self.kwargs)
             #print(self.f)
             self.AcceptStep = False
 
             while not self.AcceptStep:
                 #print(self.x1)                
-                self.x1 = self.x + np.transpose(self.h*self.f)
                 self.x1 = self.NewtonsMethodODE(fun,
-                                                t,
-                                                self.x1,
+                                                self.t,
+                                                self.x,
                                                 self.h,
-                                                self.x.T,
-                                                absTol,
+                                                self.x,
+                                                self.absTol,
                                                 100,
-                                                kwargs)
+                                                self.kwargs)
                 
                 self.hm = 0.5*self.h
-                self.tm = t + self.hm
-                self.fm,self.na = fun(self.tm,self.x,kwargs)
-                self.x1hat = self.x + np.transpose(self.hm*self.fm)
+                self.tm = self.t + self.hm
                 self.x1hat = self.NewtonsMethodODE(fun,
                                                    self.tm,
-                                                   self.x1hat,
+                                                   self.x,
                                                    self.hm,
                                                    self.x,
-                                                   absTol,
+                                                   self.absTol,
                                                    100,
-                                                   kwargs)
+                                                   self.kwargs)
                 
-                self.x1hat = self.x1hat + np.transpose(self.hm*self.f)
                 self.x1hat = self.NewtonsMethodODE(fun,
-                                                   t,
+                                                   self.t,
                                                    self.x1hat,
                                                    self.hm,
-                                                   self.x,
-                                                   absTol,
+                                                   self.x1hat,
+                                                   self.absTol,
                                                    100,
-                                                   kwargs)
+                                                   self.kwargs)
     
 #                print(self.x1hat)
                 self.e = self.x1hat - self.x1
 
-                self.r = np.max(np.abs(self.e)/np.max([absTol,
-                                np.max(np.abs(self.x1hat)*relTol)]))
+                self.r = np.max(np.abs(self.e)/np.max([self.absTol,
+                                np.max(np.abs(self.x1hat)*self.relTol)]))
   #              print(self.x1hat,t)
   #              print(np.abs(self.e),self.r,t)
                 self.AcceptStep = (self.r <= 1)
                # print("Timestep: {} and r value: {}".format(t,self.r))
                 if self.AcceptStep:
-                    t =t+self.h
+                    self.t =self.t+self.h
                     self.x = self.x1hat
-                    self.T = np.append(self.T,t)
+                    self.T = np.append(self.T,self.t)
                #     print(self.x)
               #      print(type(self.X))
                     self.X += [self.x]
                     self.ss =np.append(self.ss,self.h)
                     
                 self.h = np.max([self.facmin,
-                                np.min([np.sqrt(epstol/self.r),
+                                np.min([np.sqrt(self.epstol/self.r),
                                         self.facmax])])*self.h
                                 
         return np.asarray(self.T),np.asarray(self.X),self.ss

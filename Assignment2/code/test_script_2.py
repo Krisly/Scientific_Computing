@@ -24,14 +24,14 @@ plt.rc('figure', titlesize=font_size)  # # size of the figure title
 numsolv1 = numerical_solvers()
 #vander_pol = numsolv1(1,3,5)
 #print(sol1,sol2)
-mu = 100
+mu = 1
 x0 = np.array([2.0,0.0])
 t0 = 0
 t1 = 10
 dt = 0.01
 t = np.arange(t0,t1+dt,dt)
-absTol=10**(-8)
-relTol=10**(-3)
+absTol=10**(-6)
+relTol=10**(-4)
 epstol=0.8
 
 sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac,
@@ -43,7 +43,7 @@ sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac,
 
 a_sol_T,a_sol_X,a_ss = numsolv1.ImplicitEulerAdaptiveStepSize(numsolv1.VanderPolfunjac,
                                                               t0,
-                                                              t1,
+                                                              2*t1,
                                                               x0.T,
                                                               dt,
                                                               absTol,
