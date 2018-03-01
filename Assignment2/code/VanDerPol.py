@@ -79,7 +79,7 @@ x0 = np.array([[2.0], [0.0]])
 t0 = 0
 t1 = 5*mu
 
-dt = 0.01
+dt = 0.001
 
 r = ode(VanDerPol, JacVanDerPol).set_integrator('vode', method='bdf', order=15) 
 r.set_initial_value(x0, t0).set_f_params(mu).set_jac_params(mu)
