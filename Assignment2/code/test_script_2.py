@@ -30,8 +30,8 @@ t0 = 0
 t1 = 5*mu
 dt = 0.01
 t = np.arange(t0,t1+dt,dt)
-absTol=10**(-6)
-relTol=1
+absTol=10**(-5)
+relTol=1*10**(-3)
 epstol=0.8
 
 sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac,
@@ -43,7 +43,7 @@ sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac,
 
 a_sol_T,a_sol_X,a_ss = numsolv1.ImplicitEulerAdaptiveStepSize(numsolv1.VanderPolfunjac,
                                                               0,
-                                                              1,
+                                                              10,
                                                               x0.T,
                                                               dt,
                                                               absTol,
@@ -67,7 +67,8 @@ while r.successful() and r.t < t1:
 
 
 plt.plot(t, x[0],label='Scipy solver')
-plt.plot(sol_T, sol_X[:,0],label='Implicit Euler')
+plt.plot(sol_T, sol_X[:,0],label='Implicit Euler fixed step')
+plt.plot(a_sol_T, a_sol_X[:,0],label='Implicit Euler adaptive step')
 plt.legend(loc='lower left')
 plt.figure()
 plt.plot(t, x[1],label='Scipy Solver')

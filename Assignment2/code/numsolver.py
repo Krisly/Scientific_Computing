@@ -100,10 +100,10 @@ class numerical_solvers(object):
         self.h = h
         self.x = xa
         self.facmin = 0.1
-        self.facmax = 5
-        self.T = [t]
-        self.X = [self.x]
-        self.ss = [self.h]
+        self.facmax = 1
+        self.T = np.array([t])
+        self.X = np.array([self.x])
+        self.ss =np.array([self.h])
         while t < tb:
             if(self.t+self.h>tb):
                 self.h = tb-t
@@ -126,10 +126,17 @@ class numerical_solvers(object):
                 self.hm = 0.5*self.h
                 self.tm = t + self.hm
                 self.xm = self.x + np.transpose(self.hm*self.f)
-                self.fm,self.na = fun(self.tm,self.xm,kwargs)
-                self.x1hat = self.xm + self.hm*self.fm
+                self.x1hat = self.NewtonsMethodODE(fun,
+                                                   t,
+                                                   self.x1,
+                                                   self.h,
+                                                   xa.T,
+                                                   absTol,
+                                                   100,
+                                                   kwargs)
                 
                 self.e = self.x1hat - self.x1
+                print(self.e)
                 self.r = np.max(np.abs(self.e)/np.max([absTol,np.amax(self.x1hat*relTol)]))
     
                 self.AcceptStep = (self.r <= 1)
@@ -138,13 +145,12 @@ class numerical_solvers(object):
                     t =t+self.h
                     self.x = self.x1hat
                     
-                    self.T = self.T.append(t)
-                    self.X = self.X.append(self.x)
-                    self.ss = self.ss.append(self.h)
+                    self.T = np.append(self.T,t)
+                    self.X = np.append(self.X,self.x)
+                    self.ss =np.append(self.ss,self.h)
                     
-                    self.h = np.max([self.facmin,
-                                np.sqrt(epstol)/self.r,
-                                self.facmax])*self.h
+                self.h = np.max([self.facmin,
+                                np.sqrt(epstol)/self.r*self.facmax])*self.h
                                 
         return self.T,self.X,self.h
                                 
