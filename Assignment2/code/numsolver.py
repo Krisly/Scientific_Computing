@@ -62,7 +62,14 @@ class numerical_solvers(object):
         return self.Jac
 
     def VanderPolfunjac(self,t,x,mu):
-        return self.VanDerPol(t,x,mu), self.JacVanDerPol(t,x,mu)
+        self.t=t
+        self.x=x
+        self.mu=mu
+        return self.VanDerPol(self.t,
+                              self.x,
+                              self.mu),self.JacVanDerPol(self.t,
+                                                         self.x,
+                                                         self.mu)
     
     def ImplicitEulerFixedStepSize(self,funJac,ta,tb,N,xa,kwargs=None):
 
@@ -116,8 +123,8 @@ class numerical_solvers(object):
             if(self.t+self.h>self.tb):
                 self.h = self.tb-self.t
                 
-            self.f,self.na = fun(self.t,self.x,self.kwargs)
             #print(self.f)
+            self.t =self.t+self.h
             self.AcceptStep = False
 
             while not self.AcceptStep:
@@ -161,7 +168,6 @@ class numerical_solvers(object):
                 self.AcceptStep = (self.r <= 1)
                # print("Timestep: {} and r value: {}".format(t,self.r))
                 if self.AcceptStep:
-                    self.t =self.t+self.h
                     self.x = self.x1hat
                     self.T = np.append(self.T,self.t)
                #     print(self.x)
@@ -170,7 +176,7 @@ class numerical_solvers(object):
                     self.ss =np.append(self.ss,self.h)
                     
                 self.h = np.max([self.facmin,
-                                np.min([np.sqrt(self.epstol/self.r),
+                                np.min([np.sqrt(self.epstol/np.float64(self.r)),
                                         self.facmax])])*self.h
                                 
         return np.asarray(self.T),np.asarray(self.X),self.ss
