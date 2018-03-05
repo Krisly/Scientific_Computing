@@ -71,12 +71,12 @@ class numerical_solvers(object):
     def VanderPolfunjac(self,t,x,mu):
         return self.VanDerPol(t,x,mu),self.JacVanDerPol(t,x,mu)
     
-    def PreyPredator(self, t,x,params):
+    def PreyPredator(self, t,x,param):
         # PreyPredator Implementation of the PreyPredator model
         #
         # Syntax: xdot = VanDerPol(t,x,params)
-        a = params[0]
-        b = params[1]
+        a = self.params[0]
+        b = self.params[1]
         xdot = np.zeros([2, 1])
         xdot[0] = a*(1-x[1])*x[0]
         xdot[1] = -b*(1-x[0])*x[1]
@@ -96,7 +96,7 @@ class numerical_solvers(object):
         return Jac
     
     def PreyPredatorfunjac(self, t,x,params):
-        return [self.PreyPredator(t,x,params), self.JacPreyPredator(t,x,params)]
+        return self.PreyPredator(t,x,params), self.JacPreyPredator(t,x,params)
     
     
     def ImplicitEulerFixedStepSize(self,rjf):
@@ -207,8 +207,10 @@ class numerical_solvers(object):
             g        = gfun(T[k],X[:,k],self.param)
             psi      = X[:,k] + g*dW[:,k]
             X        = psi + f*dt
-            #X[:,k+1] = self.NewtonsMethodNewton(ffun+gfun,X)
-            X[:,k+1] = self.NewtonsMethodODE()
+            comb_fun = lambda t,x: (ffun(T[k],X[:,k],self.param) +
+                                    gfun(T[k],X[:,k],self.param))
+            
+            X[:,k+1] = self.NewtonsMethodODE(comb_fun,T[k],X[:,k],X[:,k],dt)
         return X
 
     def LangevinDrift(self,t,x,p):
