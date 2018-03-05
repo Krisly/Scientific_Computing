@@ -10,7 +10,9 @@ import numpy as np
 from scipy.integrate import ode
 import matplotlib.pyplot as plt
 import helperFunctions as hF
+from numsolver import numerical_solvers
 
+ex = numerical_solvers()
 
 
 def ScalarStdWienerProcess(T,N,Ns,seed):
@@ -47,7 +49,7 @@ def SDEeulerImplicitExplicit(ffun,gfun,T,x0,dW,varargin):
         g = gfun(T[k],X[:,k],varargin)
         psi = X[:,k] + g*dW[:,k]
         X = psi + f*dt
-        X[:,k+1] = Newton( )
+        X[:,k+1] = ex.NewtonsMethodODE()
     return X
 
 def LangevinDrift(t,x,p):

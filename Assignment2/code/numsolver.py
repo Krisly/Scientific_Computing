@@ -71,6 +71,34 @@ class numerical_solvers(object):
     def VanderPolfunjac(self,t,x,mu):
         return self.VanDerPol(t,x,mu),self.JacVanDerPol(t,x,mu)
     
+    def PreyPredator(self, t,x,params):
+        # PreyPredator Implementation of the PreyPredator model
+        #
+        # Syntax: xdot = VanDerPol(t,x,params)
+        a = params[0]
+        b = params[1]
+        xdot = np.zeros([2, 1])
+        xdot[0] = a*(1-x[1])*x[0]
+        xdot[1] = -b*(1-x[0])*x[1]
+        return xdot.T[0]
+    
+    def JacPreyPredator(self, t,x,params):
+        # JACPREYPREDATOR Jacobian for the Prey Predator Equation
+        #
+        # Syntax: Jac = JacPreyPredator(t,x,params)
+        a = params[0]
+        b = params[1]
+        Jac = np.zeros([2, 2])
+        Jac[0,0] = a*(1-x[1])
+        Jac[1,0] = b*x[1]
+        Jac[0,1] = -a*x[0]
+        Jac[1,1] = -b*(1-x[0])
+        return Jac
+    
+    def PreyPredatorfunjac(self, t,x,params):
+        return [self.PreyPredator(t,x,params), self.JacPreyPredator(t,x,params)]
+    
+    
     def ImplicitEulerFixedStepSize(self,rjf):
         dt     = self.dt
         N      = np.int32(round((self.t[1]-self.t[0])/self.dt))
