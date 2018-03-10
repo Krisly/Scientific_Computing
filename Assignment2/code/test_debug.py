@@ -16,6 +16,7 @@ Created on Wed Mar  7 21:38:58 2018
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from pylab import *
 
 def VanDerPol(t,x,mu):
     # VANDERPOL Implementation of the Van der Pol model
@@ -68,9 +69,6 @@ def PreyPredatorfunjac(t,x,params):
     return [PreyPredator(t,x,params), JacPreyPredator(t,x,params)]
 
 
-
-
-
 def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
 
     num_methods = {'Classic':
@@ -107,8 +105,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     N      = round((t[1]-t[0])/dt)
     n      = len(num_methods[method]['c'])
     k      = np.zeros((x.shape[0],n))
-    absTol = 10**(-4)
-    relTol = 10**(-4)
+    absTol = 10**(-5)
+    relTol = 10**(-5)
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
@@ -119,69 +117,163 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     if (not (method in eee)) & (adap == False):
       print('Using fixed step size')
 
-      X    = np.zeros((N))
-      X[0] = x
+      X    = np.zeros((x.shape[0],N))
+      X[:,0] = x
       T    = np.zeros((N))
       T[0] = t[0]
 
       for j in range(N-1):
        for i in range(n):
-          print(k[:,i])
-          k[:,i] = fun(T[j] + num_methods[method]['c'][i]*dt,
-                       X[:,j] + dt*(np.sum(num_methods[method]['coef{}'.format(i)]*k,axis=0)),kwargs)
+            k[:,i] = fun(T[j] + num_methods[method]['c'][i]*dt,
+                         X[:,j] + dt*(np.sum(
+                                  np.multiply(
+                         np.asarray(num_methods[method]['coef{}'.format(i)]),
+                                   k),axis=1)),kwargs)
     
-       X[j+1] = X[j] + dt*np.sum(num_methods[method]['x']*k)
+       X[:,j+1] = X[:,j] + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
        T[j+1] = T[j] + dt
       return T,X
 
     elif method in eee:
       print('Using Embedded error estimator')
       T    = np.zeros((N))
-      X    = np.zeros((N))
+      X    = np.zeros((x.shape[0],N))
       ss   = np.zeros((N))
       j    = 0
       px   = x
-      print(px)
       pt   = t[0]
-      while np.max(T) <= t[1]:
+      while np.max(T) < t[1]:
+        if(np.max(T)+dt>t[1]):
+            dt = t[1]-np.max(T)
+            
         AcceptStep = False
         while not AcceptStep:
+          ts  = pt + dt
+          k      = np.zeros((x.shape[0],n))
           for i in range(n):
-            print(k[:,i])
-            k[:,i] = fun(pt + num_methods[method]['c'][i]*dt,
+            k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
                          px + dt*(np.sum(
                                   np.multiply(
-                        np.asarray(num_methods[method]['coef{}'.format(i)]),
+                         np.asarray(num_methods[method]['coef{}'.format(i)]),
                                    k),axis=1)),kwargs)
     
           xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
+          #print(xs)
           xsh = px + dt*np.sum(np.asarray(num_methods[method]['xh'])*k,axis=1)
-          ts  = pt + dt
-
-          e = xs - xsh
-          r = np.max(np.abs(e)/(absTol + xs*relTol))
-
+          #print(xsh)
+          #print(ts,np.max(T))
+          e   = np.abs(xs - xsh)
+          num = absTol + np.abs(xs)*relTol
+          r   = np.max(e/num)
           AcceptStep = (r <= 1)
 
           if AcceptStep:
-            px      = xs
-            pt      = ts
-            X  = np.append(X,xs)
-            T[j+1]  = ts
-            ss[j+1] = dt
+            px       = xs
+            #print(xs)
+            pt       = ts
+            #print(j+1,X.shape)
+            X[:,j+1] = xs
+            #print(X.shape)
+            T[j+1]   = ts
+            ss[j+1]  = dt
             j+=1
             if j+1==N:
               ap  = round(N/2)
-              X  = np.append(X,np.zeros((ap)))
+              X  = np.append(X,np.zeros((xs.shape[0],ap)),axis=1)
               T  = np.append(T,np.zeros((ap)))
               ss = np.append(ss,np.zeros((ap)))
               N = N + ap
 
-          dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt 
-      return T[:j],X[:j],ss[:j]
+          dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
+          
+      if j%10000==0:
+          bs = X_C_A3.nbytes/1000000
+          print("At time step: {}, with step size: {} \n Percentage of time executed: {} Size of sol array in mb: {}".format(ts,dt,(ts/t[1])*100,bs))
+      
+      return T[:j],X[:,:j],ss[:j]
     elif (not (method in eee)) & (adap == True):
       print('Using step doubling')
+      
+      T    = np.zeros((N))
+      X    = np.zeros((x.shape[0],N))
+      ss   = np.zeros((N))
+      j    = 0
+      px   = x
+      pt   = t[0]
+      k    = np.zeros((x.shape[0],n))
+      k1   = np.zeros((x.shape[0],n))
+      k2   = np.zeros((x.shape[0],n))
+      
+      while np.max(T) < t[1]:
+        if(np.max(T)+dt>t[1]):
+            dt = t[1]-np.max(T)
+            
+        AcceptStep = False
+        while not AcceptStep:
+            
+          ts  = pt + dt
 
+          for i in range(n):
+            k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
+                         px + dt*(np.sum(
+                                  np.multiply(
+                         np.asarray(num_methods[method]['coef{}'.format(i)]),
+                                   k),axis=1)),kwargs)
+          xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
+
+          tts  = pt + 0.5*dt
+
+          for i in range(n):
+            k1[:,i] = fun(tts + num_methods[method]['c'][i]*dt,
+                         px + dt*(np.sum(
+                                  np.multiply(
+                         np.asarray(num_methods[method]['coef{}'.format(i)]),
+                                   k1),axis=1)),kwargs)
+          x_tmp = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k1,axis=1)
+
+          for i in range(n):
+            k2[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
+                         x_tmp + dt*(np.sum(
+                                  np.multiply(
+                         np.asarray(num_methods[method]['coef{}'.format(i)]),
+                                   k2),axis=1)),kwargs)
+          x_tmp = x_tmp + dt*np.sum(np.asarray(num_methods[method]['x'])*k2,
+                                    axis=1)
+          
+          e   = np.abs(xs - x_tmp)
+          num = absTol + np.abs(x_tmp)*relTol
+          r   = np.max(e/num)
+          
+          AcceptStep = (r <= 1)
+          
+          if AcceptStep:
+
+            px       = x_tmp
+            pt       = ts
+            X[:,j+1] = xs
+            T[j+1]   = ts
+            ss[j+1]  = dt
+            j+=1
+            if j+1==N:
+              ap  = round(N/2)
+              X  = np.append(X,np.zeros((xs.shape[0],ap)),axis=1)
+              T  = np.append(T,np.zeros((ap)))
+              ss = np.append(ss,np.zeros((ap)))
+              N = N + ap
+
+          dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
+                       facmax])])*dt
+    
+          if j%10000==0:
+              bs = X_C_A3.nbytes/1000000
+              print("At time step: {}, with step size: {} \n Percentage of time executed: {} Size of sol array in mb: {}".format(ts,dt,(ts/t[1])*100,bs))
+              #print('r: {} ts: {} dt: {} \n xs: {} x_tmp: {}'.format(r,
+              #                                                   ts,
+              #                                                   dt,
+              #                                                   xs,
+              #                                                   x_tmp))
+          
+      return T[:j],X[:,:j],ss[:j]
     else:
       print('Parameters not specified correctly')
 
@@ -192,10 +284,46 @@ def tf(t,x):
 def true_tf(t):
   return -(2/(t**2-2))
 
-T,X,SS = Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,1],0.001,3,method='Dormand-Prince')
 
-print(VanderPolfunjac(1,[0.5,0.5],3))
-#plt.plot(T,X[,],label='Runge-Kutta')
-#plt.plot(T,np.exp(T),label='True solution')
+T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
+                          np.array([0.5,0.5]),
+                          [0,10],
+                          0.001,
+                          3,
+                          method='Classic')
+
+T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
+                          np.array([0.5,0.5]),
+                          [0,10],
+                          0.001,
+                          3,
+                          method='Classic',
+                          adap=True)
+
+T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
+                          np.array([0.5,0.5]),
+                          [0,10],
+                          0.001,
+                          3,
+                          method='Dormand-Prince')
+
+
+plt.plot(T_C_3,X_C_3[1,:],label='RK4 FS')
+plt.plot(T_C_A3,X_C_A3[1,:],label='RK4 AS')
+plt.plot(T_DP_3,X_DP_3[1,:],label='DP54 AS')
+plt.legend(loc='best')
+plt.show()
+plt.plot(T_C_3,X_C_3[0,:],label='RK4 FS')
+plt.plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
+plt.plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
+plt.legend(loc='best')
+plt.show()
+plt.plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
+plt.plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
+plt.plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
+plt.legend(loc='best')
+plt.show()
+plt.plot(T_C_A3,np.log(SS_C_A3),label='SS RK4')
+plt.plot(T_DP_3,np.log(SS_DP_3),label='SS DP54')
 plt.legend(loc='best')
 plt.show()
