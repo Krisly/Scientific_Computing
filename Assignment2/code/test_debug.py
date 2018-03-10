@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Fri Mar  9 19:56:04 2018
+
+@author: root
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Wed Mar  7 21:38:58 2018
 
 @author: kristoffer
@@ -99,8 +107,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     N      = round((t[1]-t[0])/dt)
     n      = len(num_methods[method]['c'])
     k      = np.zeros((x.shape[0],n))
-    absTol = 10**(-8)
-    relTol = 10**(-8)
+    absTol = 10**(-4)
+    relTol = 10**(-4)
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
@@ -141,10 +149,13 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           for i in range(n):
             print(k[:,i])
             k[:,i] = fun(pt + num_methods[method]['c'][i]*dt,
-                         px + dt*(np.sum(np.multiply(num_methods[method]['coef{}'.format(i)],k),axis=0)),kwargs)
+                         px + dt*(np.sum(
+                                  np.multiply(
+                        np.asarray(num_methods[method]['coef{}'.format(i)]),
+                                   k),axis=1)),kwargs)
     
-          xs  = px + dt*np.sum(num_methods[method]['x']*k)
-          xsh = px + dt*np.sum(num_methods[method]['xh']*k)
+          xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
+          xsh = px + dt*np.sum(np.asarray(num_methods[method]['xh'])*k,axis=1)
           ts  = pt + dt
 
           e = xs - xsh
@@ -155,7 +166,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           if AcceptStep:
             px      = xs
             pt      = ts
-            X[j+1]  = xs
+            X  = np.append(X,xs)
             T[j+1]  = ts
             ss[j+1] = dt
             j+=1
@@ -181,10 +192,10 @@ def tf(t,x):
 def true_tf(t):
   return -(2/(t**2-2))
 
-T,X,SS = Runge_Kutta(VanderPolfunjac,np.array([0.5,0.5]),[0,10],0.001,3,method='Dormand-Prince')
+T,X,SS = Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,1],0.001,3,method='Dormand-Prince')
 
 print(VanderPolfunjac(1,[0.5,0.5],3))
-plt.plot(T,X,label='Runge-Kutta')
-plt.plot(T,np.exp(T),label='True solution')
+#plt.plot(T,X[,],label='Runge-Kutta')
+#plt.plot(T,np.exp(T),label='True solution')
 plt.legend(loc='best')
 plt.show()
