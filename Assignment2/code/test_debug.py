@@ -151,7 +151,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           k      = np.zeros((x.shape[0],n))
           for i in range(n):
             k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
-                         px + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)]),k,axis=1)),kwargs)
+                         px + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),kwargs)
     
           xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
           xsh = px + dt*np.sum(np.asarray(num_methods[method]['xh'])*k,axis=1)
@@ -279,14 +279,14 @@ def true_tf(t):
 
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,1],
+                          [0,0.5],
                           0.001,
                           3,
                           method='Classic')
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,1],
+                          [0,0.5],
                           0.001,
                           3,
                           method='Classic',
@@ -294,7 +294,7 @@ T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
 
 T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,1],
+                          [0,0.5],
                           0.001,
                           3,
                           method='Dormand-Prince')
