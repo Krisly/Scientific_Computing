@@ -145,3 +145,53 @@ def ImplicitEulerFixedStepSize(funJac,ta,tb,N,xa,kwargs):
     T = np.transpose(T)
     X = np.transpose(X)
     return [T,X]
+
+def ExplicitRungeKuttaSolver(fun,tspan,x0,h,solver,varargin):
+    #% EXPLICITRUNGEKUTTASOLVER  Fixed step size ERK solver for systems of ODEs
+    #%
+    #% Syntax:
+    #% [Tout,Xout]=ExplicitRungeKuttaSolver(fun,tspan,x0,h,solver,varargin)
+    #% Solver Parameters
+    
+    s  = solver.stages     #% Number of stages in ERK method
+    AT = solver.AT         #% Transpose of A-matrix in Butcher tableau
+    b  = solver.b          #% b-vector in Butcher tableau
+    c  = solver.c          #% c-vector in Butcher tableau
+    
+    # Parameters related to constant step size
+    hAT = h*AT
+    hb  = h*b
+    hc  = h*c
+    # Size parameters
+    x  = x0
+    t  = tspan[0]          #% Initial time
+    tf = tspan[-1]        #% Final time
+    N = (tf-t)/h           #% Number of steps
+    nx = np.size(x0)        #% System size (dim(x))
+    #% Allocate memory
+    T  = np.zeros(1,s)        #% Stage T
+    X  = np.zeros(nx,s)       #% Stage X
+    F  = np.zeros(nx,s)       #% Stage F
+    Tout = np.zeros(N+1,1)    #% Time for output
+    Xout = np.zeros(N+1,nx)   #% States for output
+    
+    Tout[0] = t
+    Xout[0,:] = x.T
+    for n in range(0,N):
+    #% Stage 1
+        T[0]   = t
+        X[:,0] = x
+        F[:,0] = fun(T[0],X[:,0],varargin)
+        #% Stage 2,3,...,s
+        T[1:s] = t + hc[1:s]
+        for i in range(1,s):
+            X[:,i] = x + F[:,0:i-1]*hAT[0:i-1,i]
+            F[:,i] = fun(T[i],X[:,i])
+        #% Next step
+        t = t + h
+        x = x + F*hb
+        #% Save output
+        Tout[n+1] = t
+        Xout[n+1,:] = x.T
+    
+    return [Tout,Xout]

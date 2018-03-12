@@ -93,7 +93,16 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
                  [0,0,0,0,0,0,11/84],
                  [0,0,0,0,0,0,0]]).T,
                 columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3',
-                         'coef4','coef5','coef6'])
+                         'coef4','coef5','coef6']),
+                'Bogacki–Shampine':
+                pd.DataFrame(np.array([[0,1/2,3/4,1],
+                 [2/9,1/3,4/9,0],
+                 [2/9,1/3,4/9,1/8],
+                 [0,1/2,0,2/9],
+                 [0,0,3/4,1/3],
+                 [0,0,0,4/9],
+                 [0,0,0,0]]).T,
+                columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3'])
     }
 
     N      = round((t[1]-t[0])/dt)
