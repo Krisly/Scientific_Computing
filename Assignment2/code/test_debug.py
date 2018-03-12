@@ -244,7 +244,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
 
             px       = x_tmp
             pt       = ts
-            X[:,j+1] = xs
+            X[:,j+1] = x_tmp
             T[j+1]   = ts
             ss[j+1]  = dt
             j+=1
