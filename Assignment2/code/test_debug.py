@@ -120,7 +120,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     facmin = 0.1
     facmax = 5
 
-    eee = ['Dormand-Prince', 'Bogacki–Shampine']
+    eee      = ['Dormand-Prince', 'Bogacki–Shampine','ESDIRK23']
+    implicit = ['ESDIRK23']
 
     if (not (method in eee)) & (adap == False):
       print('Using fixed step size')
@@ -204,18 +205,15 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
       pt   = t[0]
       k    = np.zeros((x.shape[0],n))
       k1   = np.zeros((x.shape[0],n))
-      k2   = np.zeros((x.shape[0],n))
-      pt   = t[0]
 
-      while np.max(T) < t[1]:
-        if(np.max(T)+dt>t[1]):
-            dt = t[1]-np.max(T)
+      while pt < t[1]:
+        if(pt+dt>t[1]):
+            dt = t[1]-pt
             
         AcceptStep = False
         while not AcceptStep:
             
           ts  = pt + dt
-
           for i in range(n):
             k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
                          px + dt*(np.sum(
@@ -225,23 +223,21 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
 
           tts  = pt + 0.5*dt
-
           for i in range(n):
-            k1[:,i] = fun(tts + num_methods[method]['c'][i]*dt,
+            k[:,i] = fun(tts + num_methods[method]['c'][i]*dt,
                          px + dt*(np.sum(
                                   np.multiply(
                          np.asarray(num_methods[method]['coef{}'.format(i)]),
-                                   k1),axis=1)),kwargs)
-          x_tmp = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k1,axis=1)
+                                   k),axis=1)),kwargs)
+          x_tmp = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
 
           for i in range(n):
-            k2[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
+            k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
                          x_tmp + dt*(np.sum(
                                   np.multiply(
                          np.asarray(num_methods[method]['coef{}'.format(i)]),
-                                   k2),axis=1)),kwargs)
-          x_tmp = x_tmp + dt*np.sum(np.asarray(num_methods[method]['x'])*k2,
-                                    axis=1)
+                                   k),axis=1)),kwargs)
+          x_tmp = x_tmp + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
           
           e   = np.abs(xs - x_tmp)
           num = absTol + np.abs(x_tmp)*relTol
@@ -257,11 +253,11 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
             ss[j+1]  = dt
             j+=1
             if j+1==N:
-              ap  = round(N/2)
+              ap = round(N/2)
               X  = np.append(X,np.zeros((xs.shape[0],ap)),axis=1)
               T  = np.append(T,np.zeros((ap)))
               ss = np.append(ss,np.zeros((ap)))
-              N = N + ap
+              N  = N + ap
 
           dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
                        facmax])])*dt
@@ -276,6 +272,9 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
               #                                                   x_tmp))
           
       return T[:j],X[:,:j],ss[:j]
+    elif(method in implicit) && (method in eee):
+    	print('Nice')
+    	
     else:
       print('Parameters not specified correctly')
 
@@ -331,18 +330,18 @@ ax[0,1].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
 ax[0,1].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
 ax[0,1].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
 ax[0,1].set_title('Plot of state two Predator Prey')
-ax[1,0].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+ax[0,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
 ax[1,0].plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
 ax[1,0].plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
 ax[1,0].plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
 ax[1,0].plot(X_BS_3[0,:],X_BS_3[1,:],label='BS AS')
 ax[1,0].set_title('Phase state plot')
-ax[0,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+ax[1,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
 
-ax[1,1].plot(T_C_A3,np.log(SS_C_A3),label='SS RK4')
-ax[1,1].plot(T_DP_3,np.log(SS_DP_3),label='SS DP54')
-ax[1,1].plot(T_BS_3,np.log(SS_BS_3),label='SS BS')
+ax[1,1].plot(T_C_A3[1:],np.log(SS_C_A3[1:]),label='SS RK4')
+ax[1,1].plot(T_DP_3[1:],np.log(SS_DP_3[1:]),label='SS DP54')
+ax[1,1].plot(T_BS_3[1:],np.log(SS_BS_3[1:]),label='SS BS')
 ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-4)))
 ax[1,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 plt.show()
