@@ -137,18 +137,19 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
       print('Using Embedded error estimator')
       T    = np.zeros((N))
       X    = np.zeros((x.shape[0],N))
+      k    = np.zeros((x.shape[0],n))
       ss   = np.zeros((N))
       j    = 0
       px   = x
       pt   = t[0]
-      while np.max(T) < t[1]:
-        if(np.max(T)+dt>t[1]):
-            dt = t[1]-np.max(T)
+      while pt < t[1]:
+        if(pt+dt>t[1]):
+            dt = t[1]-pt
             
         AcceptStep = False
         while not AcceptStep:
-          ts  = pt + dt
-          k      = np.zeros((x.shape[0],n))
+          ts     = pt + dt
+
           for i in range(n):
             k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
                          px + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),kwargs)
@@ -195,7 +196,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
       k    = np.zeros((x.shape[0],n))
       k1   = np.zeros((x.shape[0],n))
       k2   = np.zeros((x.shape[0],n))
-      
+      pt   = t[0]
+
       while np.max(T) < t[1]:
         if(np.max(T)+dt>t[1]):
             dt = t[1]-np.max(T)
@@ -274,28 +276,28 @@ def tf(t,x):
   return x
 
 def true_tf(t):
-  return -(2/(t**2-2))
+  return np.exp(t)
 
 
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,0.5],
-                          0.001,
+                          [0,2],
+                          10**(-4),
                           3,
                           method='Classic')
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,0.5],
-                          0.001,
+                          [0,2],
+                          10**(-4),
                           3,
                           method='Classic',
                           adap=True)
 
 T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,0.5],
-                          0.001,
+                          [0,2],
+                          10**(-4),
                           3,
                           method='Dormand-Prince')
 
@@ -312,16 +314,16 @@ ax[0,1].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
 ax[0,1].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
 ax[0,1].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
 ax[0,1].set_title('Plot of state two Predator Prey')
-ax[0,1].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+ax[1,0].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
 ax[1,0].plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
 ax[1,0].plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
 ax[1,0].plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
 ax[1,0].set_title('Phase state plot')
-ax[1,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+ax[0,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
 
 ax[1,1].plot(T_C_A3,np.log(SS_C_A3),label='SS RK4')
 ax[1,1].plot(T_DP_3,np.log(SS_DP_3),label='SS DP54')
-ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-5)))
+ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-4)))
 ax[1,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 plt.show()
