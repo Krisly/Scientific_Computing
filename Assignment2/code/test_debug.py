@@ -312,8 +312,8 @@ T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
 
 T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,0.5],
-                          0.001,
+                          [0,2],
+                          10**(-4),
                           3,
                           method='Bogacki–Shampine')
 
