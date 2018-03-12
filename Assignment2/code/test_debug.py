@@ -250,7 +250,6 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           AcceptStep = (r <= 1)
           
           if AcceptStep:
-
             px       = x_tmp
             pt       = ts
             X[:,j+1] = x_tmp
