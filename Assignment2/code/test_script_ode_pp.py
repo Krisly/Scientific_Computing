@@ -22,11 +22,12 @@ plt.rc('legend', fontsize=font_size)   # legend fontsize
 plt.rc('figure', titlesize=font_size)  # # size of the figure title
 
 # Setting up solver parameters
-mu              = 5
-x0              = np.array([2.0,0.0])
+beta            =  3
+alpha           =  0.2
+x0              = np.array([0.5,0.5])
 tend            = 20
 numsolv1        = numerical_solvers()
-numsolv1.param  = mu
+numsolv1.param  = [alpha,beta]
 numsolv1.x0     = x0
 numsolv1.maxit  = 100
 numsolv1.t      = np.array([0,tend])
@@ -35,7 +36,7 @@ t               = np.arange(0,tend+0.01,0.01)
 numsolv1.absTol = 10**(-8)
 numsolv1.relTol = 10**(-3)
 numsolv1.epstol = 0.8
-absTol_as       = 10**(-4) 
+absTol_as       = 10**(-8) 
 
 
 def PreyPredator(t,x,params):
@@ -62,22 +63,22 @@ def JacPreyPredator(t,x,params):
     Jac[1,1] = -b*(1-x[0])
     return Jac
 
-def PreyPredatorfunjac(self, t,x,params):
+def PreyPredatorfunjac(t,x,params):
     return PreyPredator(t,x,params), JacPreyPredator(t,x,params)
 
 # Solving using the Implicit fixed step size Euler method
-sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac)
+sol_T_pp,sol_X_pp = numsolv1.ImplicitEulerFixedStepSize(PreyPredatorfunjac)
 
 # Solving using the adaptive Implicit Euler
 a_sol_T,a_sol_X,a_ss,reject = numsolv1.ImplicitEulerAdaptiveStepSize(
-                                                    numsolv1.VanderPolfunjac,
+                                                    PreyPredatorfunjac,
                                                     absTol_as)
 # Setting up scipy solver
-r = ode(numsolv1.VanDerPol,
-        numsolv1.JacVanDerPol).set_integrator('vode',
+r = ode(PreyPredator,
+        JacPreyPredator).set_integrator('vode',
                                               method='bdf',
                                               order=15)
-r.set_initial_value(x0, 0).set_f_params(mu).set_jac_params(mu)
+r.set_initial_value(x0, 0).set_f_params([alpha,beta]).set_jac_params([alpha,beta])
 x = [[],[]]
 
 # Solving using the scipy solver
@@ -86,24 +87,25 @@ while r.successful() and r.t < tend:
     x[0].append(xn[0])
     x[1].append(xn[1])
 
+
 fig, ax = plt.subplots(2, 2, figsize=(20,10), sharex=False)
 # Plotting the results
 ax[0,0].plot(t[:len(x[0])], x[0],label='Scipy')
-ax[0,0].plot(sol_T, sol_X[:,0],label='IE FS')
+ax[0,0].plot(sol_T_pp, sol_X_pp[:,0],label='IE FS')
 ax[0,0].plot(a_sol_T, a_sol_X[:,0],label='IE AS')
-ax[0,0].set_title('Plot of state one Predator Prey: $\mu = {}$'.format(mu))
+ax[0,0].set_title('Plot of state one Predator Prey')
 ax[0,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
 
 ax[0,1].plot(t[:len(x[0])], x[1],label='Scipy')
-ax[0,1].plot(sol_T, sol_X[:,1],label='IE FS')
+ax[0,1].plot(sol_T_pp, sol_X_pp[:,1],label='IE FS')
 ax[0,1].plot(a_sol_T, a_sol_X[:,1],label='IE AS')
-ax[0,1].set_title('Plot of state two Predator Prey: $\mu = {}$'.format(mu))
+ax[0,1].set_title('Plot of state two Predator Prey')
 ax[0,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
 ax[1,0].plot(a_sol_X[:,0], a_sol_X[:,1],label='Scipy')
 ax[1,0].plot(a_sol_X[:,0], a_sol_X[:,1],label='IE FS')
-ax[1,0].plot(sol_X[:,0], sol_X[:,1],label='IE AS')
-ax[1,0].set_title('Phase state plot: $\mu = {}$'.format(mu))
+ax[1,0].plot(sol_X_pp[:,0], sol_X_pp[:,1],label='IE AS')
+ax[1,0].set_title('Phase state plot')
 ax[1,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
 
 ax[1,1].plot(a_sol_T,np.log(a_ss),label='SS')

@@ -110,7 +110,6 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
-    print(k)
 
     eee = ['Dormand-Prince']
 
@@ -152,16 +151,11 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           k      = np.zeros((x.shape[0],n))
           for i in range(n):
             k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
-                         px + dt*(np.sum(
-                                  np.multiply(
-                         np.asarray(num_methods[method]['coef{}'.format(i)]),
-                                   k),axis=1)),kwargs)
+                         px + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)]),k,axis=1)),kwargs)
     
           xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
-          #print(xs)
           xsh = px + dt*np.sum(np.asarray(num_methods[method]['xh'])*k,axis=1)
-          #print(xsh)
-          #print(ts,np.max(T))
+
           e   = np.abs(xs - xsh)
           num = absTol + np.abs(xs)*relTol
           r   = np.max(e/num)
@@ -169,13 +163,11 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
 
           if AcceptStep:
             px       = xs
-            #print(xs)
             pt       = ts
-            #print(j+1,X.shape)
             X[:,j+1] = xs
-            #print(X.shape)
             T[j+1]   = ts
             ss[j+1]  = dt
+
             j+=1
             if j+1==N:
               ap  = round(N/2)
@@ -187,7 +179,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
           
       if j%10000==0:
-          bs = X_C_A3.nbytes/1000000
+          bs = X.nbytes/1000000
           print("At time step: {}, with step size: {} \n Percentage of time executed: {} Size of sol array in mb: {}".format(ts,dt,(ts/t[1])*100,bs))
       
       return T[:j],X[:,:j],ss[:j]
@@ -265,7 +257,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
                        facmax])])*dt
     
           if j%10000==0:
-              bs = X_C_A3.nbytes/1000000
+              bs = X.nbytes/1000000
               print("At time step: {}, with step size: {} \n Percentage of time executed: {} Size of sol array in mb: {}".format(ts,dt,(ts/t[1])*100,bs))
               #print('r: {} ts: {} dt: {} \n xs: {} x_tmp: {}'.format(r,
               #                                                   ts,
@@ -287,14 +279,14 @@ def true_tf(t):
 
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,10],
+                          [0,1],
                           0.001,
                           3,
                           method='Classic')
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,10],
+                          [0,1],
                           0.001,
                           3,
                           method='Classic',
@@ -302,28 +294,34 @@ T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
 
 T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,10],
+                          [0,1],
                           0.001,
                           3,
                           method='Dormand-Prince')
 
 
-plt.plot(T_C_3,X_C_3[1,:],label='RK4 FS')
-plt.plot(T_C_A3,X_C_A3[1,:],label='RK4 AS')
-plt.plot(T_DP_3,X_DP_3[1,:],label='DP54 AS')
-plt.legend(loc='best')
-plt.show()
-plt.plot(T_C_3,X_C_3[0,:],label='RK4 FS')
-plt.plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
-plt.plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
-plt.legend(loc='best')
-plt.show()
-plt.plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
-plt.plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
-plt.plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
-plt.legend(loc='best')
-plt.show()
-plt.plot(T_C_A3,np.log(SS_C_A3),label='SS RK4')
-plt.plot(T_DP_3,np.log(SS_DP_3),label='SS DP54')
-plt.legend(loc='best')
+fig, ax = plt.subplots(2, 2, figsize=(20,10), sharex=False)
+# Plotting the results
+ax[0,0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
+ax[0,0].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
+ax[0,0].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
+ax[0,0].set_title('Plot of state one Predator Prey')
+ax[0,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+
+ax[0,1].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
+ax[0,1].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
+ax[0,1].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
+ax[0,1].set_title('Plot of state two Predator Prey')
+ax[0,1].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+
+ax[1,0].plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
+ax[1,0].plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
+ax[1,0].plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
+ax[1,0].set_title('Phase state plot')
+ax[1,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+
+ax[1,1].plot(T_C_A3,np.log(SS_C_A3),label='SS RK4')
+ax[1,1].plot(T_DP_3,np.log(SS_DP_3),label='SS DP54')
+ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-5)))
+ax[1,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 plt.show()
