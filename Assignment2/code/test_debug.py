@@ -99,7 +99,16 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
                  [0,0,0,0,0,0,11/84],
                  [0,0,0,0,0,0,0]]).T,
                 columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3',
-                         'coef4','coef5','coef6'])
+                         'coef4','coef5','coef6']),
+                'Bogacki–Shampine':
+                pd.DataFrame(np.array([[0,1/2,3/4,1],
+                 [2/9,1/3,4/9,0],
+                 [2/9,1/3,4/9,1/8],
+                 [0,1/2,0,2/9],
+                 [0,0,3/4,1/3],
+                 [0,0,0,4/9],
+                 [0,0,0,0]]).T,
+                columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3'])
     }
 
     N      = round((t[1]-t[0])/dt)
@@ -111,7 +120,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     facmin = 0.1
     facmax = 5
 
-    eee = ['Dormand-Prince']
+    eee = ['Dormand-Prince', 'Bogacki–Shampine']
 
     if (not (method in eee)) & (adap == False):
       print('Using fixed step size')
@@ -299,29 +308,40 @@ T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
                           3,
                           method='Dormand-Prince')
 
+T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
+                          np.array([0.5,0.5]),
+                          [0,0.5],
+                          0.001,
+                          3,
+                          method='Bogacki–Shampine')
+
 
 fig, ax = plt.subplots(2, 2, figsize=(20,10), sharex=False)
 # Plotting the results
 ax[0,0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
 ax[0,0].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
 ax[0,0].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
+ax[0,0].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
 ax[0,0].set_title('Plot of state one Predator Prey')
 ax[0,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
 
 ax[0,1].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
 ax[0,1].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
 ax[0,1].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
+ax[0,1].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
 ax[0,1].set_title('Plot of state two Predator Prey')
 ax[0,1].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
 
 ax[1,0].plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
 ax[1,0].plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
 ax[1,0].plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
+ax[1,0].plot(X_BS_3[0,:],X_BS_3[1,:],label='BS AS')
 ax[1,0].set_title('Phase state plot')
 ax[1,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
 
 ax[1,1].plot(T_C_A3,np.log(SS_C_A3),label='SS RK4')
 ax[1,1].plot(T_DP_3,np.log(SS_DP_3),label='SS DP54')
+ax[1,1].plot(T_BS_3,np.log(SS_BS_3),label='SS BS')
 ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-5)))
 ax[1,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 plt.show()
