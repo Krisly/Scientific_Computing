@@ -68,6 +68,12 @@ def JacPreyPredator(t,x,params):
 def PreyPredatorfunjac(t,x,params):
     return [PreyPredator(t,x,params), JacPreyPredator(t,x,params)]
 
+def rk_step(fun,num_methods,method,k,t,x,dt,xm):
+	for i in range(n):
+		k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
+        			x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),
+                    kwargs)
+	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
 def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
 
@@ -160,12 +166,13 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
         while not AcceptStep:
           ts     = pt + dt
 
-          for i in range(n):
-            k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
-                         px + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),kwargs)
-    
-          xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
-          xsh = px + dt*np.sum(np.asarray(num_methods[method]['xh'])*k,axis=1)
+          #for i in range(n):
+          #  k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
+          #               px + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),kwargs)
+		  #xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
+          #xsh = px + dt*np.sum(np.asarray(num_methods[method]['xh'])*k,axis=1)    	
+          k,xs = rk_step(fun,num_methods,method,k,ts,px,dt,'x')
+          xsh = rk_step(fun,num_methods,method,k,ts,px,dt,'xh')
 
           e   = np.abs(xs - xsh)
           num = absTol + np.abs(xs)*relTol
@@ -274,7 +281,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
       return T[:j],X[:,:j],ss[:j]
     elif(method in implicit) && (method in eee):
     	print('Nice')
-    	
+
     else:
       print('Parameters not specified correctly')
 
