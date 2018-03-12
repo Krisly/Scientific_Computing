@@ -22,8 +22,8 @@ plt.rc('legend', fontsize=font_size)   # legend fontsize
 plt.rc('figure', titlesize=font_size)  # # size of the figure title
 
 # Setting up solver parameters
-mu              = 5
-x0              = np.array([2.0,0.0])
+mu              = 10
+x0              = np.array([0.5,0.5])
 tend            = 20
 numsolv1        = numerical_solvers()
 numsolv1.param  = mu
@@ -86,27 +86,61 @@ while r.successful() and r.t < tend:
     x[0].append(xn[0])
     x[1].append(xn[1])
 
-fig, ax = plt.subplots(2, 2, figsize=(20,10), sharex=False)
+fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 # Plotting the results
-ax[0,0].plot(t[:len(x[0])], x[0],label='Scipy')
-ax[0,0].plot(sol_T, sol_X[:,0],label='IE FS')
-ax[0,0].plot(a_sol_T, a_sol_X[:,0],label='IE AS')
-ax[0,0].set_title('Plot of state one Predator Prey: $\mu = {}$'.format(mu))
-ax[0,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+ax[0].plot(t[:len(x[0])], x[0],label='Scipy')
+ax[0].plot(sol_T, sol_X[:,0],label='IE FS')
+ax[0].plot(a_sol_T, a_sol_X[:,0],label='IE AS')
+ax[0].set_xticks([])
+ax[0].set_title(r'Plot of state one Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(numsolv1.dt,mu,absTol_as,numsolv1.relTol))
+ax[0].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
-ax[0,1].plot(t[:len(x[0])], x[1],label='Scipy')
-ax[0,1].plot(sol_T, sol_X[:,1],label='IE FS')
-ax[0,1].plot(a_sol_T, a_sol_X[:,1],label='IE AS')
-ax[0,1].set_title('Plot of state two Predator Prey: $\mu = {}$'.format(mu))
-ax[0,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+ax[1].plot(t[:len(x[0])], x[1],label='Scipy')
+ax[1].plot(sol_T, sol_X[:,1],label='IE FS')
+ax[1].plot(a_sol_T, a_sol_X[:,1],label='IE AS')
+ax[1].set_title(r'Plot of state two Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(numsolv1.dt,mu,absTol_as,numsolv1.relTol))
+ax[1].set_xticks([])
+ax[1].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
-ax[1,0].plot(a_sol_X[:,0], a_sol_X[:,1],label='Scipy')
-ax[1,0].plot(a_sol_X[:,0], a_sol_X[:,1],label='IE FS')
-ax[1,0].plot(sol_X[:,0], sol_X[:,1],label='IE AS')
-ax[1,0].set_title('Phase state plot: $\mu = {}$'.format(mu))
-ax[1,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
-
-ax[1,1].plot(a_sol_T,np.log(a_ss),label='SS')
-ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(absTol_as))
-ax[1,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+ax[2].plot(a_sol_T,np.log(a_ss),label='SS')
+ax[2].set_title(r'Semi log-plot of step sizes with tolerance {}'.format(absTol_as))
+ax[2].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
+plt.savefig('./figs/VanDerPol_IE_mu{}_abstol{}_reltol{}.pdf'.format(round(mu),
+																  (-1)*round(np.log10(absTol_as)),
+																  (-1)*round(np.log10(numsolv1.relTol))))
 plt.show()
+
+plt.figure()
+plt.plot(x[0], x[1],label='Scipy')
+plt.plot(a_sol_X[:,0], a_sol_X[:,1],label='IE FS')
+plt.plot(sol_X[:,0], sol_X[:,1],label='IE AS')
+plt.title(r'Phase state plot. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(numsolv1.dt,mu,absTol_as,numsolv1.relTol))
+plt.legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
+plt.savefig('./figs/VanDerPol_phase_IE_mu{}_abstol{}_reltol{}.pdf'.format(round(mu),
+																  (-1)*round(np.log10(absTol_as)),
+																  (-1)*round(np.log10(numsolv1.relTol))))
+plt.show()
+
+'''
+fig, ax = plt.subplots(3,1, figsize=(15,10), sharex=False)
+# Plotting the results
+ax[0].plot(t_scipy, x_scipy[0][:],label='Scipy')
+ax[0].plot(t, x[:,0],label='EE FS')
+ax[0].plot(t2, x2[:,0],'-o',label='EE AS')
+ax[0].set_title(r'Plot of state one Predator Prey. [SS: {} $\alpha = {}$, $\beta = {}$, abstol = {} reltol = {}]'.format(round((t1-t0)/dt),a,b,abstol,reltol))
+ax[0].legend(bbox_to_anchor=(-0.1, 1), loc=2, borderaxespad=0.)
+
+ax[1].plot(t_scipy, x_scipy[1][:],label='Scipy')
+ax[1].plot(t, x[:,1],label='EE FS')
+ax[1].plot(t2, x2[:,1],'-o',label='EE AS')
+ax[1].set_title(r'Plot of state two Predator Prey. [SS: {} $\alpha = {}$, $\beta = {}$, abstol = {} reltol = {}]'.format(round((t1-t0)/dt),a,b,abstol,reltol))
+ax[1].legend(bbox_to_anchor=(-0.1, 1), loc=2, borderaxespad=0.)
+
+ax[2].plot(x_scipy[0][:], x_scipy[1][:],label='Scipy')
+ax[2].plot(x[:,0], x[:,1],label='EE FS')
+ax[2].plot(x2[:,0], x2[:,1],'-o',label='EE AS')
+ax[2].set_title(r'Phase state plot. [SS: {} $\alpha = {}$, $\beta = {}$, abstol = {} reltol = {}]'.format(round((t1-t0)/dt),a,b,abstol,reltol))
+ax[2].legend(bbox_to_anchor=(-0.1, 1), loc=2, borderaxespad=0.)
+plt.savefig('./figs/PredatorPrey_EE_a{}_b{}.pdf'.format(round(a),round(b)))
+plt.show()
+'''
