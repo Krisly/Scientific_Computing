@@ -16,6 +16,7 @@ Created on Wed Mar  7 21:38:58 2018
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.integrate import ode
 import cProfile
 
 def VanDerPol(t,x,mu):
@@ -120,8 +121,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     N      = round((t[1]-t[0])/dt)
     n      = len(num_methods[method]['c'])
     k      = np.zeros((x.shape[0],n))
-    absTol = 10**(-4)
-    relTol = 10**(-4)
+    absTol = 10**(-8)
+    relTol = 10**(-8)
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
@@ -276,65 +277,99 @@ def tf(t,x):
 def true_tf(t):
   return np.exp(t)
 
-mu = 1
+abstol = 10**(-8)
+reltol = 10**(-8)
+x0 = np.array([0.5,0.5])
+dt = 10**(-4)
+mu = 3
+ti  = [0,100]
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
-                          np.array([0.5,0.5]),
-                          [0,10],
-                          10**(-4),
+                          x0,
+                          ti,
+                          dt,
                           mu,
                           method='Classic')
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
-                          np.array([0.5,0.5]),
-                          [0,10],
-                          10**(-4),
+                          x0,
+                          ti,
+                          dt,
                           mu,
                           method='Classic',
                           adap=True)
 
 T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
-                          np.array([0.5,0.5]),
-                          [0,10],
-                          10**(-4),
+                          x0,
+                          ti,
+                          dt,
                           mu,
                           method='Dormand-Prince')
 
 T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
-                          np.array([0.5,0.5]),
-                          [0,10],
-                          10**(-4),
+                          x0,
+                          ti,
+                          dt,
                           mu,
                           method='Bogacki–Shampine')
 
 
-fig, ax = plt.subplots(2, 2, figsize=(15,10), sharex=False)
+r = ode(VanDerPol,
+        JacVanDerPol).set_integrator('vode',
+                                      method='bdf',
+                                      with_jacobian=True,
+                                      order=15)
+r.set_initial_value(x0, ti[0]).set_f_params(mu).set_jac_params(mu)
+x_sci_s = [[],[]]
+t       = np.arange(0,ti[1]+0.01,0.01)
+# Solving using the scipy solver
+while r.successful() and r.t < ti[1]:
+    xn = r.integrate(r.t+0.01)
+    x_sci_s[0].append(xn[0])
+    x_sci_s[1].append(xn[1])
+
+fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 # Plotting the results
-ax[0,0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
-ax[0,0].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
-ax[0,0].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
-ax[0,0].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
-ax[0,0].set_title('Plot of state one Predator Prey')
-ax[0,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
+ax[0].plot(t[:len(x_sci_s[0][:])],x_sci_s[0][:],label='Scipy')
+ax[0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
+ax[0].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
+ax[0].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
+ax[0].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
+ax[0].set_title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
+ax[0].set_xticks([])
+ax[0].set_ylim(-5,5)
+ax[0].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
-ax[0,1].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
-ax[0,1].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
-ax[0,1].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
-ax[0,1].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
-ax[0,1].set_title('Plot of state two Predator Prey')
-ax[0,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+ax[1].plot(t[:len(x_sci_s[1][:])],x_sci_s[1][:],label='Scipy')
+ax[1].plot(T_C_3,X_C_3[1,:],label='RK4 FS')
+ax[1].plot(T_C_A3,X_C_A3[1,:],label='RK4 AS')
+ax[1].plot(T_DP_3,X_DP_3[1,:],label='DP54 AS')
+ax[1].plot(T_BS_3,X_BS_3[1,:],label='BS AS')
+ax[1].set_title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
+ax[1].set_xticks([])
+ax[1].set_ylim(-5,5)
+ax[1].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
-ax[1,0].plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
-ax[1,0].plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
-ax[1,0].plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
-ax[1,0].plot(X_BS_3[0,:],X_BS_3[1,:],label='BS AS')
-ax[1,0].set_title('Phase state plot')
-ax[1,0].legend(bbox_to_anchor=(-0.3, 1), loc=2, borderaxespad=0.)
-
-ax[1,1].plot(T_C_A3[1:],np.log(SS_C_A3[1:]),label='SS RK4')
-ax[1,1].plot(T_DP_3[1:],np.log(SS_DP_3[1:]),label='SS DP54')
-ax[1,1].plot(T_BS_3[1:],np.log(SS_BS_3[1:]),label='SS BS')
-ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-4)))
-ax[1,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+ax[2].plot(T_C_A3[1:],np.log(SS_C_A3[1:]),label='SS RK4')
+ax[2].plot(T_DP_3[1:],np.log(SS_DP_3[1:]),label='SS DP54')
+ax[2].plot(T_BS_3[1:],np.log(SS_BS_3[1:]),label='SS BS')
+ax[2].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-4)))
+ax[2].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 plt.show()
 
-cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
+plt.figure()
+plt.plot(x_sci_s[0][:],x_sci_s[1][:],label='Scipy')
+plt.plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
+plt.plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
+plt.plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
+plt.plot(X_BS_3[0,:],X_BS_3[1,:],label='BS AS')
+plt.title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
+plt.legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
+plt.show()
+
+
+
+
+#cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
+
+
+
