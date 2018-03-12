@@ -16,8 +16,7 @@ Created on Wed Mar  7 21:38:58 2018
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import os
-from pylab import *
+import cProfile
 
 def VanDerPol(t,x,mu):
     # VANDERPOL Implementation of the Van der Pol model
@@ -163,7 +162,6 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
       ss     = np.zeros((N))
       j      = 0
       X[:,0] = x
-      ts     = t[0]
 
       while T[j] < t[1]:
         if(T[j]+dt>t[1]):
@@ -309,7 +307,7 @@ T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
                           method='Bogacki–Shampine')
 
 
-fig, ax = plt.subplots(2, 2, figsize=(20,10), sharex=False)
+fig, ax = plt.subplots(2, 2, figsize=(15,10), sharex=False)
 # Plotting the results
 ax[0,0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
 ax[0,0].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
@@ -338,3 +336,5 @@ ax[1,1].plot(T_BS_3[1:],np.log(SS_BS_3[1:]),label='SS BS')
 ax[1,1].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-4)))
 ax[1,1].legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 plt.show()
+
+cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
