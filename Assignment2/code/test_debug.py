@@ -16,6 +16,7 @@ Created on Wed Mar  7 21:38:58 2018
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 from pylab import *
 
 def VanDerPol(t,x,mu):
@@ -68,11 +69,11 @@ def JacPreyPredator(t,x,params):
 def PreyPredatorfunjac(t,x,params):
     return [PreyPredator(t,x,params), JacPreyPredator(t,x,params)]
 
-def rk_step(fun,num_methods,method,k,t,x,dt,xm):
-	for i in range(n):
-		k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
-        			x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),
-                    kwargs)
+def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
+	for i in range(len(num_methods[method]['c'])):
+		k[:,i] = fun(t + num_methods[method]['c'][i]*dt,
+        			 x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),
+                     kwargs)
 	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
 def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
@@ -103,7 +104,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
                  [0,0,0,0,-212/729,49/176,125/192],
                  [0,0,0,0,0,-5103/18656,-2187/6784],
                  [0,0,0,0,0,0,11/84],
-                 [0,0,0,0,0,0,0]]).T,
+                 [0,0,0,0,0,0,0]],dtype=np.float64).T,
                 columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3',
                          'coef4','coef5','coef6']),
                 'Bogacki–Shampine':
@@ -120,8 +121,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     N      = round((t[1]-t[0])/dt)
     n      = len(num_methods[method]['c'])
     k      = np.zeros((x.shape[0],n))
-    absTol = 10**(-5)
-    relTol = 10**(-5)
+    absTol = 10**(-4)
+    relTol = 10**(-4)
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
@@ -130,7 +131,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
     implicit = ['ESDIRK23']
 
     if (not (method in eee)) & (adap == False):
-      print('Using fixed step size')
+      print('Using fixed step size for: {}'.format(method))
 
       X    = np.zeros((x.shape[0],N))
       X[:,0] = x
@@ -138,41 +139,44 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
       T[0] = t[0]
 
       for j in range(N-1):
-       for i in range(n):
-            k[:,i] = fun(T[j] + num_methods[method]['c'][i]*dt,
-                         X[:,j] + dt*(np.sum(
-                                  np.multiply(
-                         np.asarray(num_methods[method]['coef{}'.format(i)]),
-                                   k),axis=1)),kwargs)
-    
-       X[:,j+1] = X[:,j] + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
+       k,xs   = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'x',kwargs)
+       X[:,j+1] = xs
        T[j+1] = T[j] + dt
+
+       if j%round(N/15)==0:
+            bs = X.nbytes/1000000
+            print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
+            																  'Step size[power]:',
+            																  'Percentage:',
+            																  'Array size[mb]:',
+            															      round(T[j],2),
+              																  round(np.log10(dt),2),
+              																  round((T[j]/t[1])*100,2),
+              																  bs))
       return T,X
 
     elif method in eee:
-      print('Using Embedded error estimator')
-      T    = np.zeros((N))
-      X    = np.zeros((x.shape[0],N))
-      k    = np.zeros((x.shape[0],n))
-      ss   = np.zeros((N))
-      j    = 0
-      px   = x
-      pt   = t[0]
-      while pt < t[1]:
-        if(pt+dt>t[1]):
-            dt = t[1]-pt
+      print('Using Embedded error estimator for: {}'.format(method))
+      T      = np.zeros((N))
+      X      = np.zeros((x.shape[0],N))
+      k      = np.zeros((x.shape[0],n))
+      ss     = np.zeros((N))
+      j      = 0
+      X[:,0] = x
+      ts     = t[0]
+
+      while T[j] < t[1]:
+        if(T[j]+dt>t[1]):
+            dt = t[1]-T[j]
             
         AcceptStep = False
         while not AcceptStep:
-          ts     = pt + dt
-
-          #for i in range(n):
-          #  k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
-          #               px + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),kwargs)
-		  #xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
-          #xsh = px + dt*np.sum(np.asarray(num_methods[method]['xh'])*k,axis=1)    	
-          k,xs = rk_step(fun,num_methods,method,k,ts,px,dt,'x')
-          xsh = rk_step(fun,num_methods,method,k,ts,px,dt,'xh')
+          if method == 'Dormand-Prince':
+            k,xs   = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'xh',kwargs)
+            na,xsh = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'x',kwargs)
+          else:
+            k,xs   = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'x',kwargs)
+            na,xsh = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'xh',kwargs)
 
           e   = np.abs(xs - xsh)
           num = absTol + np.abs(xs)*relTol
@@ -180,10 +184,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           AcceptStep = (r <= 1)
 
           if AcceptStep:
-            px       = xs
-            pt       = ts
             X[:,j+1] = xs
-            T[j+1]   = ts
+            T[j+1]   = T[j] + dt 
             ss[j+1]  = dt
 
             j+=1
@@ -194,57 +196,42 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
               ss = np.append(ss,np.zeros((ap)))
               N = N + ap
 
+          if j%(len(X)/15)==0:
+            bs = X.nbytes/1000000
+            print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
+            																  'Step size[power]:',
+            																  'Percentage:',
+            																  'Array size[mb]:',
+            															      round(T[j],2),
+              																  round(np.log10(dt),2),
+              																  round((T[j]/t[1])*100,2),
+              																  bs))
+
           dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
           
-      if j%10000==0:
-          bs = X.nbytes/1000000
-          print("At time step: {}, with step size: {} \n Percentage of time executed: {} Size of sol array in mb: {}".format(ts,dt,(ts/t[1])*100,bs))
-      
+
       return T[:j],X[:,:j],ss[:j]
     elif (not (method in eee)) & (adap == True):
-      print('Using step doubling')
+      print('Using step doubling for: {}'.format(method))
       
-      T    = np.zeros((N))
-      X    = np.zeros((x.shape[0],N))
-      ss   = np.zeros((N))
-      j    = 0
-      px   = x
-      pt   = t[0]
-      k    = np.zeros((x.shape[0],n))
-      k1   = np.zeros((x.shape[0],n))
+      T      = np.zeros((N))
+      X      = np.zeros((x.shape[0],N))
+      ss     = np.zeros((N))
+      j      = 0
+      X[:,0] = x
+      T[0]   = t[0]
+      k      = np.zeros((x.shape[0],n))
 
-      while pt < t[1]:
-        if(pt+dt>t[1]):
-            dt = t[1]-pt
+      while T[j] < t[1]:
+        if(T[j]+dt>t[1]):
+            dt = t[1]-T[j]
             
         AcceptStep = False
         while not AcceptStep:
             
-          ts  = pt + dt
-          for i in range(n):
-            k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
-                         px + dt*(np.sum(
-                                  np.multiply(
-                         np.asarray(num_methods[method]['coef{}'.format(i)]),
-                                   k),axis=1)),kwargs)
-          xs  = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
-
-          tts  = pt + 0.5*dt
-          for i in range(n):
-            k[:,i] = fun(tts + num_methods[method]['c'][i]*dt,
-                         px + dt*(np.sum(
-                                  np.multiply(
-                         np.asarray(num_methods[method]['coef{}'.format(i)]),
-                                   k),axis=1)),kwargs)
-          x_tmp = px + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
-
-          for i in range(n):
-            k[:,i] = fun(ts + num_methods[method]['c'][i]*dt,
-                         x_tmp + dt*(np.sum(
-                                  np.multiply(
-                         np.asarray(num_methods[method]['coef{}'.format(i)]),
-                                   k),axis=1)),kwargs)
-          x_tmp = x_tmp + dt*np.sum(np.asarray(num_methods[method]['x'])*k,axis=1)
+          k,xs    = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'x',kwargs)
+          k,x_tmp = rk_step(fun,num_methods,method,k,T[j],X[:,j],0.5*dt,'x',kwargs)
+          k,x_tmp = rk_step(fun,num_methods,method,k,T[j],x_tmp,0.5*dt,'x',kwargs)
           
           e   = np.abs(xs - x_tmp)
           num = absTol + np.abs(x_tmp)*relTol
@@ -253,10 +240,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           AcceptStep = (r <= 1)
           
           if AcceptStep:
-            px       = x_tmp
-            pt       = ts
             X[:,j+1] = x_tmp
-            T[j+1]   = ts
+            T[j+1]   = T[j] + dt
             ss[j+1]  = dt
             j+=1
             if j+1==N:
@@ -269,17 +254,18 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
                        facmax])])*dt
     
-          if j%10000==0:
+          if j%(len(X)/15)==0:
               bs = X.nbytes/1000000
-              print("At time step: {}, with step size: {} \n Percentage of time executed: {} Size of sol array in mb: {}".format(ts,dt,(ts/t[1])*100,bs))
-              #print('r: {} ts: {} dt: {} \n xs: {} x_tmp: {}'.format(r,
-              #                                                   ts,
-              #                                                   dt,
-              #                                                   xs,
-              #                                                   x_tmp))
-          
+              print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
+            																  'Step size[power]:',
+            																  'Percentage:',
+            																  'Array size[mb]:',
+            															      round(T[j],2),
+              																  round(np.log10(dt),2),
+              																  round((T[j]/t[1])*100,2),
+              																  bs))
       return T[:j],X[:,:j],ss[:j]
-    elif(method in implicit) && (method in eee):
+    elif(method in implicit) & (method in eee):
     	print('Nice')
 
     else:
@@ -292,34 +278,34 @@ def tf(t,x):
 def true_tf(t):
   return np.exp(t)
 
-
+mu = 1
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,2],
+                          [0,10],
                           10**(-4),
-                          3,
+                          mu,
                           method='Classic')
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,2],
+                          [0,10],
                           10**(-4),
-                          3,
+                          mu,
                           method='Classic',
                           adap=True)
 
 T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,2],
+                          [0,10],
                           10**(-4),
-                          3,
+                          mu,
                           method='Dormand-Prince')
 
 T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
                           np.array([0.5,0.5]),
-                          [0,2],
+                          [0,10],
                           10**(-4),
-                          3,
+                          mu,
                           method='Bogacki–Shampine')
 
 
