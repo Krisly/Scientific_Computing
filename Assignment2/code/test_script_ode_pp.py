@@ -22,8 +22,8 @@ plt.rc('legend', fontsize=font_size)   # legend fontsize
 plt.rc('figure', titlesize=font_size)  # # size of the figure title
 
 # Setting up solver parameters
-b               =  3
-a               =  0.2
+b               =  1
+a               =  1
 x0              = np.array([0.5,0.5])
 tend            = 20
 numsolv1        = numerical_solvers()
@@ -94,13 +94,13 @@ ax[0].plot(t[:len(x[0])], x[0],label='Scipy')
 ax[0].plot(sol_T_pp, sol_X_pp[:,0],label='IE FS')
 ax[0].plot(a_sol_T, a_sol_X[:,0],label='IE AS')
 ax[0].set_xticks([])
-ax[0].set_title(r'Plot of state one Van Der Pol. [SS: {}, $\alpha = {}$, $\beta = {}$, abstol = {}, reltol = {}]'.format(numsolv1.dt,a,b,absTol_as,numsolv1.relTol))
+ax[0].set_title(r'Plot of state one Predator Prey. [SS: {}, $\alpha = {}$, $\beta = {}$, abstol = {}, reltol = {}]'.format(numsolv1.dt,a,b,absTol_as,numsolv1.relTol))
 ax[0].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
 ax[1].plot(t[:len(x[0])], x[1],label='Scipy')
 ax[1].plot(sol_T_pp, sol_X_pp[:,1],label='IE FS')
 ax[1].plot(a_sol_T, a_sol_X[:,1],label='IE AS')
-ax[1].set_title(r'Plot of state two Van Der Pol. [SS: {}, $\alpha = {}$, $\beta = {}$, abstol = {}, reltol = {}]'.format(numsolv1.dt,a,b,absTol_as,numsolv1.relTol))
+ax[1].set_title(r'Plot of state two Predator Prey. [SS: {}, $\alpha = {}$, $\beta = {}$, abstol = {}, reltol = {}]'.format(numsolv1.dt,a,b,absTol_as,numsolv1.relTol))
 ax[1].set_xticks([])
 ax[1].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
