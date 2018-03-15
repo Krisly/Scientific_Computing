@@ -18,6 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import ode
 import cProfile
+import scipy
 
 def VanDerPol(t,x,mu):
     # VANDERPOL Implementation of the Van der Pol model
@@ -76,7 +77,7 @@ def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
                      kwargs)
 	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
-def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
+def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
 
     num_methods = {'Classic':
                 pd.DataFrame(np.array([[0,1/2,1/2,1],
@@ -115,20 +116,30 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
                  [0,0,3/4,1/3],
                  [0,0,0,4/9],
                  [0,0,0,0]]).T,
-                columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3'])
+                columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3']),
+                'ESDIRK23':
+                pd.DataFrame(np.array([[0,2-np.sqrt(2),1],
+                 [1/4*np.sqrt(2),1/4*np.sqrt(2),1-1/2*np.sqrt(2)],
+                 [(-5+3*np.sqrt(2))/(-12+6*np.sqrt(2)), -1/(6*(-2+np.sqrt(2))*(-1+np.sqrt(2))), (-4+3*np.sqrt(2))/(-6+6*np.sqrt(2))],
+                 [0,1-1/2*np.sqrt(2), 1/4*np.sqrt(2)],
+                 [0,1-1/2*np.sqrt(2),1/4*np.sqrt(2)],
+                 [0,0,1-1/2*np.sqrt(2)],
+                 [(4-3*np.sqrt(2))/(-6+3*np.sqrt(2)), -1/3, (-4+3*np.sqrt(2))/(-3+3*np.sqrt(2))]]).T,
+                columns=['c', 'x', 'xh', 'coef0', 'coef1', 'coef2', 'd'])          
     }
 
     N      = round((t[1]-t[0])/dt)
     n      = len(num_methods[method]['c'])
     k      = np.zeros((x.shape[0],n))
-    absTol = 10**(-8)
-    relTol = 10**(-8)
+    absTol = 10**(-4)
+    relTol = 10**(-4)
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
 
-    eee      = ['Dormand-Prince', 'Bogacki–Shampine','ESDIRK23']
-    implicit = ['ESDIRK23']
+    eee      = ['Dormand-Prince', 'Bogacki–Shampine']
+    implicit = ['RADAU5']
+    ESDIRK = ['ESDIRK23']
 
     if (not (method in eee)) & (adap == False):
       print('Using fixed step size for: {}'.format(method))
@@ -210,7 +221,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
           
 
       return T[:j],X[:,:j],ss[:j]
-    elif (not (method in eee)) & (adap == True):
+    elif (not (method in eee)) & (adap == True) & (not (method in ESDIRK)):
       print('Using step doubling for: {}'.format(method))
       
       T      = np.zeros((N))
@@ -264,9 +275,121 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
               																  round((T[j]/t[1])*100,2),
               																  bs))
       return T[:j],X[:,:j],ss[:j]
-    elif(method in implicit) & (method in eee):
+    elif (method in implicit) & (method in eee):
     	print('Nice')
+    
+    elif method in ESDIRK:
+        print('LOS POLLOS HERMANOS')
+        T      = np.zeros((N))
+        X      = np.zeros((x.shape[0],N))
+        k      = np.zeros((x.shape[0],n))
+        ss     = np.zeros((N))
+        j      = 0
+        X[:,0] = x
+        I = np.eye(np.size(x))
+        c = num_methods[method]['c']
+        s = len(c)
+        b = np.asarray(num_methods[method]['x'])
+        d = np.asarray(num_methods[method]['d'])
 
+        epsilon = reltol
+
+        if method == 'ESDIRK23':
+            gamma = (2-np.sqrt(2))/2
+
+        Fstage = np.zeros((x.shape[0],s))
+        Tstage = np.zeros(s)
+        Xstage = np.zeros((x.shape[0],s))
+        Psistage = np.zeros((x.shape[0],s))
+        Rstage = np.zeros((x.shape[0],s))
+        
+        Fprev = fun(T[j],X[:,j],kwargs)
+
+        while T[j] < t[1]:
+            if(T[j]+dt>t[1]):
+                dt = t[1]-T[j]
+        
+     #for i in range(len(num_methods[method]['c'])):
+	#	k[:,i] = fun(t + num_methods[method]['c'][i]*dt,
+     #   			 x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),
+     #                kwargs)
+	#return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
+    
+    
+            M = I - dt*gamma*jac(T[j],X[:,j],kwargs)
+            P, L, U = scipy.linalg.lu(M)
+            
+            
+            AcceptStep = False
+            while not AcceptStep:
+                #print('s')
+                Tstage[1] = T[j]
+                Xstage[:,1] = X[:,j]
+                Fstage[:,1] = Fprev
+                
+                for i in range(2,s):
+                   # print (Fstage)
+                   # print (b)
+                   # print ([b[z-1]*Fstage[:,z] for z in range(1,i-1)])
+                   # print (b[1-1]*Fstage[:,1])
+                    Psistage[:,i] = Xstage[:,1] + dt*  np.array([b[z-1]*Fstage[:,z] for z in range(1,i)])
+                    Tstage[i] = T[j] + c[i-1]*dt
+                    Xstage[:,i] = X[:,j] + c[i-1]*dt*Fstage[:,1]
+                    Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
+                    Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
+                    
+                    while(np.linalg.norm(Rstage[:,i]) > (0.00000001)):
+                        print (M)
+                        print (P*M)
+                        print ('-'*10)
+                        print (L)
+                        print (U)
+                        print (P*L*U)
+                        print ('-'*10)
+                        qwe = np.linalg.solve(L, P*Rstage[:,i])
+                        print (P*Rstage[:,i])
+                        Dx = np.linalg.solve(U, qwe)
+                        print (P*Rstage[:,i])
+                        print (qwe)
+                        Xstage[:,i] = Xstage[:,i] + Dx
+                        Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
+                        Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
+                        
+                e = np.abs(dt* np.array([d[z-i]*Fstage[:,z] for z in range(1,s)]))
+                num = absTol + np.abs(Xstage[:,i])*relTol
+                r   = np.max(e/num)
+                print (r)
+                AcceptStep = (r <= 1)
+                
+                if AcceptStep:
+                    print(T[j], X[:,j])
+                    X[:,j+1] = Xstage[:,s-1]
+                    T[j+1]   = T[j] + dt 
+                    ss[j+1]  = dt
+        
+                    j+=1
+                    
+                    if j+1==N:
+                      ap  = round(N/2)
+                      X  = np.append(X,np.zeros((Xstage.shape[0],ap)),axis=1)
+                      T  = np.append(T,np.zeros((ap)))
+                      ss = np.append(ss,np.zeros((ap)))
+                      N = N + ap
+                      
+                dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
+                print (dt)
+        
+            if j%(len(X)/15)==0:
+                bs = X.nbytes/1000000
+                print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
+                    																  'Step size[power]:',
+                    																  'Percentage:',
+                    																  'Array size[mb]:',
+                    															      round(T[j],2),
+                  																  round(np.log10(dt),2),
+                  																  round((T[j]/t[1])*100,2),
+                  																  bs))
+        return T[:j],X[:,:j],ss[:j]
     else:
       print('Parameters not specified correctly')
 
@@ -277,16 +400,26 @@ def tf(t,x):
 def true_tf(t):
   return np.exp(t)
 
-abstol = 10**(-8)
-reltol = 10**(-8)
+abstol = 10**(-2)
+reltol = 10**(-2)
 x0 = np.array([0.5,0.5])
 dt = 10**(-4)
-mu = 3
-ti  = [0,100]
-T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
+mu = 1
+ti  = [0,10]
+
+T_ESDIRK_A3,X_ESDIRK_A3,SS_ESDIRK_A3 = Runge_Kutta(VanDerPol,
                           x0,
                           ti,
                           dt,
+                          mu,
+                          method='ESDIRK23',
+                          adap=True,
+                          jac=JacVanDerPol)
+
+T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
+                          x0,
+                          ti,
+                          dt*100,
                           mu,
                           method='Classic')
 
