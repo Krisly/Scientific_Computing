@@ -333,7 +333,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
         a[1] = [1-1/2*np.sqrt(2), 1-1/2*np.sqrt(2), 0]
         a[2] = [1/4*np.sqrt(2), 1/4*np.sqrt(2), 1-1/2*np.sqrt(2)]
 
-
+        alpha = 0.002
+        alpharef = 0.2
         epsilon = reltol
 
         if method == 'ESDIRK23':
@@ -385,7 +386,10 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                     Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
                     Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
                     
-                    while(np.linalg.norm(Rstage[:,i]) > (0.01)):
+                    rnewt = np.max(np.abs(Rstage[:,i])/(absTol + np.abs(Xstage[:,i])*relTol))
+                    diverging = False
+                    
+                    while (rnewt > (1) & (not diverging)): #np.linalg.norm(Rstage[:,i]) 0.08
 #                        print (M)
 #                        print (P*M)
 #                        print ('-'*10)
@@ -405,15 +409,24 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                         Dx = scipy.linalg.lu_solve((LU, P),Rstage[:,i])
 
                         #print (Dx)
+                        rprev = rnewt
+                        
+                        
                         Xstage[:,i] = Xstage[:,i] - Dx
                         Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
                         Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
                         
+                        rnewt = np.max(np.abs(Rstage[:,i])/(absTol + np.abs(Xstage[:,i])*relTol))
+                        alpha = np.max([alpha, rnewt/rprev])
+                        if (alpha >= 1):
+                            diverging = True
+
+                    dtalpha = alpharef/alpha*dt
                 e = np.abs(dt* np.array([d[z-i]*Fstage[:,z] for z in range(1,s)]))
                 num = absTol + np.abs(Xstage[:,s-1])*relTol
                 r   = np.max(e/num)
                 #print (r)
-                AcceptStep = (r <= 1)
+                AcceptStep = (r <= 1) & (not diverging)
                 
                 if AcceptStep:
                     #print(T[j], X[:,j])
@@ -431,6 +444,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                       N = N + ap
                       
                 dt = (epsTol/r)**(1/3)*dt#np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
+                dt = np.min([dt,dtalpha])
                 #print (dt)
         
             if j%(len(X)/15)==0:
