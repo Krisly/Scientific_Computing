@@ -1,8 +1,16 @@
- \left[ \begin {array}{ccc} i-z \left( 2+1/2\,\sqrt {6} \right) &-z
- \left( -6/5+{\frac {29\,\sqrt {6}}{30}} \right) &-z \left( 2/5-{
-\frac {4\,\sqrt {6}}{15}} \right) \\ \noalign{\medskip}-z \left( -6/5-
-{\frac {29\,\sqrt {6}}{30}} \right) &i-z \left( 2-1/2\,\sqrt {6}
- \right) &-z \left( 2/5+{\frac {4\,\sqrt {6}}{15}} \right) 
-\\ \noalign{\medskip}-z \left( -1+8/3\,\sqrt {6} \right) &-z \left( -1
--8/3\,\sqrt {6} \right) &i-5\,z\end {array} \right] 
+ \left[ \begin {array}{ccc} {\frac { \left( -3\,{z}^{2}+7\,z \right) 
+\sqrt {6}-12\,{z}^{2}+128\,z-360}{6\,{z}^{3}-54\,{z}^{2}+216\,z-360}}&
+-1/30\,{\frac {z \left( 29\,z\sqrt {6}-169\,\sqrt {6}-36\,z+296
+ \right) }{{z}^{3}-9\,{z}^{2}+36\,z-60}}&{\frac {4\,z \left( z-3
+ \right) \sqrt {6}-6\,{z}^{2}+8\,z}{15\,{z}^{3}-135\,{z}^{2}+540\,z-
+900}}\\ \noalign{\medskip}{\frac {z \left( 29\,z\sqrt {6}-169\,\sqrt {
+6}+36\,z-296 \right) }{30\,{z}^{3}-270\,{z}^{2}+1080\,z-1800}}&{\frac 
+{ \left( 3\,{z}^{2}-7\,z \right) \sqrt {6}-12\,{z}^{2}+128\,z-360}{6\,
+{z}^{3}-54\,{z}^{2}+216\,z-360}}&{\frac {-4\,z \left( z-3 \right) 
+\sqrt {6}-6\,{z}^{2}+8\,z}{15\,{z}^{3}-135\,{z}^{2}+540\,z-900}}
+\\ \noalign{\medskip}-{\frac {z \left( 8\,z\sqrt {6}-5\,\sqrt {6}-3\,z
++80 \right) }{3\,{z}^{3}-27\,{z}^{2}+108\,z-180}}&{\frac {z \left( 8\,
+z\sqrt {6}-5\,\sqrt {6}+3\,z-80 \right) }{3\,{z}^{3}-27\,{z}^{2}+108\,
+z-180}}&{\frac {-15\,{z}^{2}+88\,z-180}{3\,{z}^{3}-27\,{z}^{2}+108\,z-
+180}}\end {array} \right] 
 
