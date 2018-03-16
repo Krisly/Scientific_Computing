@@ -77,7 +77,43 @@ def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
                      kwargs)
 	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
+def fill_array(C,A,b,a):
+		nrow = A.shape[0]
+		ncol = A.shape[1]
+	
+		for i in range(len(a)):
+			for k in range(len(a)):
+				z      = a[i,k]
+				I      = np.eye(nrow,ncol)
+				e 	   = np.ones((nrow,1))
+				eiAinv = np.linalg.inv(I-z*A)
+				c_tmp  = 1 + z*b.T*eiAinv*e
+				if np.absolute(c_tmp) > 1:
+					C[k,i] = 1
+				else:
+					C[k,i] = np.absolute(c_tmp)
+		return C
+
+def plot_stab_reg(C,A,b):
+
+	xmin = -5
+	xmax = 5
+	ymin = -5
+	ymax = 5
+	xv, yv = np.meshgrid(np.arange(xmin,xmax,0.05), np.arange(ymin,ymax,0.05), sparse=False, indexing='ij')
+	
+	a = xv + 1j*yv
+	
+	t = fill_array(C,A,b,a)
+	#print(t/np.amax(t))
+	#plt.scatter(a.real,a.imag, c = t,cmap='hsv')
+	plt.imshow(t,cmap='hsv',extent=[xmin, xmax, ymax, ymin],interpolation='bilinear')
+	plt.colorbar()
+	plt.show()
+
+
 def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
+
 
     num_methods = {'Classic':
                 pd.DataFrame(np.array([[0,1/2,1/2,1],
@@ -409,7 +445,11 @@ def true_tf(t):
 abstol = 10**(-4)
 reltol = 10**(-4)
 x0 = np.array([0.5,0.5])
-dt = 10**(-6)
+
+dt = 10**(-2)
+mu = 3
+ti  = [0,100]
+
 mu = 1
 ti  = [0,10]
 
@@ -519,7 +559,7 @@ plt.show()
 
 
 
-#cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
+cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
 
 
 

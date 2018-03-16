@@ -1,0 +1,8 @@
+ \left[ \begin {array}{ccc} i-z \left( 2+1/2\,\sqrt {6} \right) &-z
+ \left( -6/5+{\frac {29\,\sqrt {6}}{30}} \right) &-z \left( 2/5-{
+\frac {4\,\sqrt {6}}{15}} \right) \\ \noalign{\medskip}-z \left( -6/5-
+{\frac {29\,\sqrt {6}}{30}} \right) &i-z \left( 2-1/2\,\sqrt {6}
+ \right) &-z \left( 2/5+{\frac {4\,\sqrt {6}}{15}} \right) 
+\\ \noalign{\medskip}-z \left( -1+8/3\,\sqrt {6} \right) &-z \left( -1
+-8/3\,\sqrt {6} \right) &i-5\,z\end {array} \right] 
+
