@@ -77,8 +77,6 @@ def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
                      kwargs)
 	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
-<<<<<<< HEAD
-
 def fill_array(C,A,b,a):
 		nrow = A.shape[0]
 		ncol = A.shape[1]
@@ -113,10 +111,9 @@ def plot_stab_reg(C,A,b):
 	plt.colorbar()
 	plt.show()
 
-def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False):
-=======
+
 def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
->>>>>>> d31207476da89a4254f59798bc3224c0a7ee9938
+
 
     num_methods = {'Classic':
                 pd.DataFrame(np.array([[0,1/2,1/2,1],
@@ -356,8 +353,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
     
     
             M = I - dt*gamma*jac(T[j],X[:,j],kwargs)
-            P, L, U = scipy.linalg.lu(M)
-            
+            LU, P = scipy.linalg.lu_factor(M)
             
             AcceptStep = False
             while not AcceptStep:
@@ -377,27 +373,34 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                     Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
                     Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
                     
-                    while(np.linalg.norm(Rstage[:,i]) > (0.00000001)):
-                        print (M)
-                        print (P*M)
-                        print ('-'*10)
-                        print (L)
-                        print (U)
-                        print (P*L*U)
-                        print ('-'*10)
-                        qwe = np.linalg.solve(L, P*Rstage[:,i])
-                        print (P*Rstage[:,i])
-                        Dx = np.linalg.solve(U, qwe)
-                        print (P*Rstage[:,i])
-                        print (qwe)
-                        Xstage[:,i] = Xstage[:,i] + Dx
+                    while(np.linalg.norm(Rstage[:,i]) > (0.000001)):
+#                        print (M)
+#                        print (P*M)
+#                        print ('-'*10)
+#                        print (L)
+#                        print (U)
+#                        print (L*U)
+#                        print ('-'*10)
+#                        print (P*Rstage[:,i])
+#                        print (Rstage[np.int32(P),i])
+                        #print (Fstage[:,i])
+                        #print (Psistage[:,i])
+                        #print (Rstage[:,i])
+#                        print ('+'*10)
+                        #qwe = np.linalg.solve(L, Rstage[np.int32(P),i])
+
+                        #Dx = np.linalg.solve(U, qwe)
+                        Dx = scipy.linalg.lu_solve((LU, P),Rstage[:,i])
+
+                        #print (Dx)
+                        Xstage[:,i] = Xstage[:,i] - Dx
                         Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
                         Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
                         
                 e = np.abs(dt* np.array([d[z-i]*Fstage[:,z] for z in range(1,s)]))
                 num = absTol + np.abs(Xstage[:,i])*relTol
                 r   = np.max(e/num)
-                print (r)
+                #print (r)
                 AcceptStep = (r <= 1)
                 
                 if AcceptStep:
@@ -439,21 +442,18 @@ def tf(t,x):
 def true_tf(t):
   return np.exp(t)
 
-abstol = 10**(-2)
-reltol = 10**(-2)
+abstol = 10**(-4)
+reltol = 10**(-4)
 x0 = np.array([0.5,0.5])
-<<<<<<< HEAD
+
 dt = 10**(-2)
 mu = 3
 ti  = [0,100]
-T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
-=======
-dt = 10**(-4)
+
 mu = 1
 ti  = [0,10]
 
 T_ESDIRK_A3,X_ESDIRK_A3,SS_ESDIRK_A3 = Runge_Kutta(VanDerPol,
->>>>>>> d31207476da89a4254f59798bc3224c0a7ee9938
                           x0,
                           ti,
                           dt,
@@ -465,9 +465,20 @@ T_ESDIRK_A3,X_ESDIRK_A3,SS_ESDIRK_A3 = Runge_Kutta(VanDerPol,
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           x0,
                           ti,
-                          dt*100,
+                          1e-4,
                           mu,
                           method='Classic')
+
+plt.plot(T_ESDIRK_A3, SS_ESDIRK_A3)
+plt.show()
+plt.plot(T_ESDIRK_A3, X_ESDIRK_A3[0,:], T_ESDIRK_A3, X_ESDIRK_A3[1,:])
+plt.show()
+plt.plot(X_ESDIRK_A3[0,:], X_ESDIRK_A3[1,:])
+plt.show()
+plt.plot(T_C_3, X_C_3[0,:], T_C_3, X_C_3[1,:])
+plt.show()
+plt.plot(X_C_3[0,:], X_C_3[1,:])
+asdasdasd
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
                           x0,
