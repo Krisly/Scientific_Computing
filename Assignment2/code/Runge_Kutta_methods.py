@@ -328,16 +328,22 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
         b = np.asarray(num_methods[method]['x'])
         d = np.asarray(num_methods[method]['d'])
 
+        a = np.zeros([3,3])
+        a[0] = [0,0,0]
+        a[1] = [1-1/2*np.sqrt(2), 1-1/2*np.sqrt(2), 0]
+        a[2] = [1/4*np.sqrt(2), 1/4*np.sqrt(2), 1-1/2*np.sqrt(2)]
+
+
         epsilon = reltol
 
         if method == 'ESDIRK23':
             gamma = (2-np.sqrt(2))/2
 
-        Fstage = np.zeros((x.shape[0],s))
-        Tstage = np.zeros(s)
-        Xstage = np.zeros((x.shape[0],s))
-        Psistage = np.zeros((x.shape[0],s))
-        Rstage = np.zeros((x.shape[0],s))
+        Fstage = np.zeros((x.shape[0],s+1))
+        Tstage = np.zeros(s+1)
+        Xstage = np.zeros((x.shape[0],s+1))
+        Psistage = np.zeros((x.shape[0],s+1))
+        Rstage = np.zeros((x.shape[0],s+1))
         
         Fprev = fun(T[j],X[:,j],kwargs)
 
@@ -362,18 +368,24 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                 Xstage[:,1] = X[:,j]
                 Fstage[:,1] = Fprev
                 
-                for i in range(2,s):
+                for i in range(2,s+1):
+                    #a = np.asarray(num_methods[method]['coef{}'.format(i-1)])
                    # print (Fstage)
-                   # print (b)
+                    #print ("-"*4)
+                    #print (i)
+                    #print (a)
                    # print ([b[z-1]*Fstage[:,z] for z in range(1,i-1)])
                    # print (b[1-1]*Fstage[:,1])
-                    Psistage[:,i] = Xstage[:,1] + dt*  np.array([b[z-1]*Fstage[:,z] for z in range(1,i)])
+                    #print (np.array([a[z]*Fstage[:,z] for z in range(1,i)]))
+                    #print ("-"*3)
+                    #print (np.array([a[i-1,z]*Fstage[:,z] for z in range(1,i)]))
+                    Psistage[:,i] = Xstage[:,1] + dt*  np.sum(np.array([a[i-1,z]*Fstage[:,z] for z in range(1,i)]), axis=0)
                     Tstage[i] = T[j] + c[i-1]*dt
                     Xstage[:,i] = X[:,j] + c[i-1]*dt*Fstage[:,1]
                     Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
                     Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
                     
-                    while(np.linalg.norm(Rstage[:,i]) > (0.000001)):
+                    while(np.linalg.norm(Rstage[:,i]) > (0.01)):
 #                        print (M)
 #                        print (P*M)
 #                        print ('-'*10)
@@ -398,17 +410,17 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                         Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
                         
                 e = np.abs(dt* np.array([d[z-i]*Fstage[:,z] for z in range(1,s)]))
-                num = absTol + np.abs(Xstage[:,i])*relTol
+                num = absTol + np.abs(Xstage[:,s-1])*relTol
                 r   = np.max(e/num)
                 #print (r)
                 AcceptStep = (r <= 1)
                 
                 if AcceptStep:
-                    print(T[j], X[:,j])
-                    X[:,j+1] = Xstage[:,s-1]
+                    #print(T[j], X[:,j])
+                    X[:,j+1] = Xstage[:,s]
                     T[j+1]   = T[j] + dt 
                     ss[j+1]  = dt
-        
+                    Fprev = Fstage[:,s]
                     j+=1
                     
                     if j+1==N:
@@ -418,8 +430,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                       ss = np.append(ss,np.zeros((ap)))
                       N = N + ap
                       
-                dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
-                print (dt)
+                dt = (epsTol/r)**(1/3)*dt#np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
+                #print (dt)
         
             if j%(len(X)/15)==0:
                 bs = X.nbytes/1000000
@@ -442,8 +454,8 @@ def tf(t,x):
 def true_tf(t):
   return np.exp(t)
 
-abstol = 10**(-4)
-reltol = 10**(-4)
+abstol = 10**(-6)
+reltol = 10**(-6)
 x0 = np.array([0.5,0.5])
 
 dt = 10**(-2)
@@ -462,12 +474,20 @@ T_ESDIRK_A3,X_ESDIRK_A3,SS_ESDIRK_A3 = Runge_Kutta(VanDerPol,
                           adap=True,
                           jac=JacVanDerPol)
 
-T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
-                          x0,
-                          ti,
-                          1e-4,
-                          mu,
-                          method='Classic')
+
+r = ode(VanDerPol,
+        JacVanDerPol).set_integrator('vode',
+                                      method='bdf',
+                                      with_jacobian=True,
+                                      order=15)
+r.set_initial_value(x0, ti[0]).set_f_params(mu).set_jac_params(mu)
+x_sci_s = [[],[]]
+t       = np.arange(0,ti[1]+0.01,0.01)
+# Solving using the scipy solver
+while r.successful() and r.t < ti[1]:
+    xn = r.integrate(r.t+0.01)
+    x_sci_s[0].append(xn[0])
+    x_sci_s[1].append(xn[1])
 
 plt.plot(T_ESDIRK_A3, SS_ESDIRK_A3)
 plt.show()
@@ -475,9 +495,10 @@ plt.plot(T_ESDIRK_A3, X_ESDIRK_A3[0,:], T_ESDIRK_A3, X_ESDIRK_A3[1,:])
 plt.show()
 plt.plot(X_ESDIRK_A3[0,:], X_ESDIRK_A3[1,:])
 plt.show()
-plt.plot(T_C_3, X_C_3[0,:], T_C_3, X_C_3[1,:])
+plt.plot(t, x_sci_s[0], t ,x_sci_s[1])
 plt.show()
-plt.plot(X_C_3[0,:], X_C_3[1,:])
+plt.plot(x_sci_s[0],x_sci_s[1])
+plt.show()
 asdasdasd
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
