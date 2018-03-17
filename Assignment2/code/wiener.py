@@ -52,29 +52,35 @@ def SDENewtonSolver(ffun,t,dt,psi,xinit,tol,maxit,varargin):
     I = np.eye(np.size(xinit))
     x = xinit
     [f,J] = ffun(t,x,varargin)
-    R = x - f*dt - psi
+    R = x - f[0]*dt - psi
     it = 1
-    while ( (np.norm(R,np.inf) > tol) and (it <= maxit) ):
+    while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
         dRdx = I - J*dt
         mdx = np.linalg.solve(dRdx,R)
         x = x - mdx
         [f,J] = ffun(t,x,varargin)
-        R = x - f*dt - psi
+        R = x - f[0]*dt - psi
         it = it+1
     return [x,f,J]
 
-def SDEeulerImplicitExplicit(ffun,gfun,T,x0,dW,varargin):
+def SDEeulerImplicitExplicit(ffun,gfun,T,x0,W,varargin):
+    tol = 1e-8
+    maxit = 100
+    
     N = np.size(T)-1
     nx = np.size(x0)
     X = np.zeros([nx,N+1])
     X[:,0] = x0
+    k = 0
+    [f,j] = ffun(T[k],X[:,k],varargin)
+    
     for k in range(0,N):
         dt = T[k+1]-T[k]
-        f = ffun(T[k],X[:,k],varargin)
         g = gfun(T[k],X[:,k],varargin)
-        psi = X[:,k] + g*dW[k]
-        X = psi + f*dt
-        X[:,k+1] = SDENewtonSolver(ffun,T[k+1],dt,psi,x0,1.0e-8,100,varargin)
+        dW = W[k+1,:]-W[k,:]
+        psi = X[:,k] + g*dW
+        xinit = psi + f[0]*dt
+        X[:,k+1],f,j = SDENewtonSolver(ffun,T[k+1],dt,psi,xinit,tol,maxit,varargin)
     return X
 #    tol = 1.0e-8
 #    maxit = 100
@@ -207,11 +213,13 @@ Ns = 15
 seed = 1002
 
 [W,T,dW]=StdWienerProcess(tf,N,Nw,Ns,seed)
-X = np.zeros([np.size(W,0), np.size(W,1)])
+
 X = np.zeros([np.size(x0), N+1, Ns])
+Ximpl = np.zeros([np.size(x0), N+1, Ns])
+
 for i in range(0,Ns):
     X[:,:,i] = SDEeulerExplicitExplicit(lambda t,x,p: VanderpolDrift(t,x,p)[0],VanderPolDiffusion1,T,x0,W[:,:,i].T,P)
-    
+    Ximpl[:,:,i] = SDEeulerImplicitExplicit(VanderpolDrift, VanderPolDiffusion1, T, x0, W[:,:,i].T, P)
 
 
 
