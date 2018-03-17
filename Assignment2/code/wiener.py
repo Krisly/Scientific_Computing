@@ -29,8 +29,8 @@ def StdWienerProcess(T,N,nW,Ns,seed):
 
     np.random.seed(seed)
     dt = T/N
-    dW = np.sqrt(dt)*np.random.randn(Ns,nW,N)
-    W = np.append(np.zeros([Ns,1,nW]), np.cumsum(dW,1), axis=2)
+    dW = np.sqrt(dt)*np.random.randn(nW,N,Ns)
+    W = np.append(np.zeros([nW,1,Ns]), np.cumsum(dW,1), axis=1)
     Tw = np.arange(0,T+dt/2,dt)
     return [W,Tw,dW]
 
@@ -42,7 +42,7 @@ def SDEeulerExplicitExplicit(ffun,gfun,T,x0,W,varargin):
     X[:,0] = x0
     for k in range(0,N):
         dt = T[k+1]-T[k]
-        dW = W[k+1]-W[k]
+        dW = W[k+1,:]-W[k,:]
         f = ffun(T[k],X[:,k],varargin)
         g = gfun(T[k],X[:,k],varargin)
         X[:,k+1] = X[:,k] + f*dt + g*dW
@@ -52,29 +52,35 @@ def SDENewtonSolver(ffun,t,dt,psi,xinit,tol,maxit,varargin):
     I = np.eye(np.size(xinit))
     x = xinit
     [f,J] = ffun(t,x,varargin)
-    R = x - f*dt - psi
+    R = x - f[0]*dt - psi
     it = 1
-    while ( (np.norm(R,np.inf) > tol) and (it <= maxit) ):
+    while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
         dRdx = I - J*dt
         mdx = np.linalg.solve(dRdx,R)
         x = x - mdx
         [f,J] = ffun(t,x,varargin)
-        R = x - f*dt - psi
+        R = x - f[0]*dt - psi
         it = it+1
     return [x,f,J]
 
-def SDEeulerImplicitExplicit(ffun,gfun,T,x0,dW,varargin):
+def SDEeulerImplicitExplicit(ffun,gfun,T,x0,W,varargin):
+    tol = 1e-8
+    maxit = 100
+    
     N = np.size(T)-1
     nx = np.size(x0)
     X = np.zeros([nx,N+1])
     X[:,0] = x0
+    k = 0
+    [f,j] = ffun(T[k],X[:,k],varargin)
+    
     for k in range(0,N):
         dt = T[k+1]-T[k]
-        f = ffun(T[k],X[:,k],varargin)
         g = gfun(T[k],X[:,k],varargin)
-        psi = X[:,k] + g*dW[k]
-        X = psi + f*dt
-        X[:,k+1] = SDENewtonSolver(ffun,T[k+1],dt,psi,x0,1.0e-8,100,varargin)
+        dW = W[k+1,:]-W[k,:]
+        psi = X[:,k] + g*dW
+        xinit = psi + f[0]*dt
+        X[:,k+1],f,j = SDENewtonSolver(ffun,T[k+1],dt,psi,xinit,tol,maxit,varargin)
     return X
 #    tol = 1.0e-8
 #    maxit = 100
@@ -95,15 +101,20 @@ def SDEeulerImplicitExplicit(ffun,gfun,T,x0,dW,varargin):
 def VanderpolDrift(t,x,p):
     mu = p[0]
     tmp = mu*(1.0-x[0]*x[0])
-    f = np.zeros([2,1])
+    f = np.zeros([1,2])
     f[0,0] = x[1]
-    f[1,0] = tmp*x[1]-x[0]
+    f[0,1] = tmp*x[1]-x[0]
     J = np.array([[0, 1],[ -2*mu*x[0]*x[1]-1.0, tmp]])
     return [f,J]
 
 def VanderPolDiffusion1(t,x,p):
     sigma = p[1]
     g = [0.0, sigma]
+    return g
+
+def VanderPolDiffusion2(t,x,p):
+    sigma = p[1]
+    g = [0.0, sigma*(1+x[0]*x[1])]
     return g
 
 def LangevinDrift(t,x,p):
@@ -116,6 +127,16 @@ def LangevinDiffusion(t,x,p):
     g = sigma
     return g
 
+def GeometricBrownianDrift(t,x,p):
+    lamda = p[0]
+    f = lamda*x
+    return f
+
+def GeometricBrownianDiffusion(t,x,p):
+    sigma = p[1]
+    g = sigma*x
+    return g
+
 [W,Tw,dW] = ScalarStdWienerProcess(20,2000,20,100)
 #np.tile(Tw,[np.size(W,0),1])
 plt.plot(Tw,W.T)
@@ -124,9 +145,9 @@ plt.show()
 
 
 T = 10
-N = 10000
-Ns = 10
-seed = 1002
+N = 1000
+Ns = 100
+seed = 1001
 
 
 x0 = 10
@@ -151,11 +172,24 @@ P = [lamda, sigma]
 
 X = np.zeros([np.size(W,0), np.size(W,1)])
 for i in range(0,Ns):
-    X[i,:] = SDEeulerExplicitExplicit(LangevinDrift,LangevinDiffusion,Tw,x0,W[i,:],P)
+    X[i,:] = SDEeulerExplicitExplicit(LangevinDrift,LangevinDiffusion,Tw,x0,W[i,:,None],P)
 
 plt.plot(Tw,X.T)
 plt.show()
 
+x0 = 1
+lamda = 0.15
+sigma = 0.15
+
+P = [lamda, sigma]
+
+X = np.zeros([np.size(W,0), np.size(W,1)])
+
+for i in range(0,Ns):
+    X[i,:] = SDEeulerExplicitExplicit(GeometricBrownianDrift,GeometricBrownianDiffusion,Tw,x0,W[i,:,None],P)
+
+plt.plot(Tw,X.T)
+plt.show()
 #
 #
 #[W,Tw,dW]=ScalarStdWienerProcess(T,N,Ns,seed)
@@ -171,17 +205,53 @@ plt.show()
 mu = 3
 sigma = 1
 x0 = [0.5, 0.5]
-p = [mu, sigma]
+P = [mu, sigma]
 tf = 5*mu
-nw = 1
+Nw = 2
 N = 1000
-Ns = 5
-seed = 100
+Ns = 15
+seed = 1002
 
-[W,T,dW]=StdWienerProcess(tf,N,nw,Ns,seed)
-X = np.zeros([np.size(W,0), np.size(W,1)])
+[W,T,dW]=StdWienerProcess(tf,N,Nw,Ns,seed)
+
+X = np.zeros([np.size(x0), N+1, Ns])
+Ximpl = np.zeros([np.size(x0), N+1, Ns])
+
 for i in range(0,Ns):
-    X[i,:] = SDEeulerExplicitExplicit(VanderpolDrift,VanderPolDiffusion1,T,x0,W[i,:],P)
+    X[:,:,i] = SDEeulerExplicitExplicit(lambda t,x,p: VanderpolDrift(t,x,p)[0],VanderPolDiffusion1,T,x0,W[:,:,i].T,P)
+    Ximpl[:,:,i] = SDEeulerImplicitExplicit(VanderpolDrift, VanderPolDiffusion1, T, x0, W[:,:,i].T, P)
+
+
+
+r = ode(lambda t,x,p: VanderpolDrift(t,x,p)[0],
+        lambda t,x,p: VanderpolDrift(t,x,p)[1]).set_integrator('vode',
+                                      method='bdf',
+                                      with_jacobian=True,
+                                      order=15)
+r.set_initial_value(x0, 0).set_f_params(p).set_jac_params(p)
+x_sci_s = [[],[]]
+t       = np.arange(0,tf+0.01,0.01)
+# Solving using the scipy solver
+while r.successful() and r.t < tf:
+    xn = r.integrate(r.t+0.01)
+    x_sci_s[0].append(xn[0])
+    x_sci_s[1].append(xn[1])
+
+plt.plot(T, X[0,:,:])
+plt.plot(t, x_sci_s[0], 'black', linewidth=3)
+plt.show()
+plt.plot(T, X[1,:,:])
+plt.plot(t, x_sci_s[1], 'black', linewidth=3)
+plt.show()
+plt.plot(X[0,:,:],X[1,:,:])
+plt.plot(x_sci_s[0],x_sci_s[1], 'black', linewidth=3)
+plt.show()
+
+#plt.plot(t, x_sci_s[0], t ,x_sci_s[1])
+#plt.show()
+#plt.plot(x_sci_s[0],x_sci_s[1])
+#plt.show()
+
 #X(:,:,i) = SDEsolverExplicitExplicit(...
 #@VanderPolDrift,@VanderPolDiffusion1,...
 #T,x0,W(:,:,i),p);
