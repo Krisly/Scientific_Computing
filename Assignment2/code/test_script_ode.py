@@ -65,7 +65,7 @@ def JacPreyPredator(t,x,params):
 def PreyPredatorfunjac(self, t,x,params):
     return PreyPredator(t,x,params), JacPreyPredator(t,x,params)
 
-# Solving using the Implicit fixed step size Euler method
+# Solving using the Implicit Euler fixed step size method
 sol_T,sol_X = numsolv1.ImplicitEulerFixedStepSize(numsolv1.VanderPolfunjac)
 
 # Solving using the adaptive Implicit Euler
