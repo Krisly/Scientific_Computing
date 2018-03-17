@@ -77,6 +77,42 @@ def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
                      kwargs)
 	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
+def NewtonSolver(fun,jac,t,dt,xinit,tol,maxit,kwargs):
+    I = np.eye(np.size(xinit))
+    x = xinit
+    f = fun(x)
+    J = jac(t,x,kwargs)
+    R = x - f*dt
+    it = 1
+    while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
+        dRdx = I - J*dt
+        mdx = np.linalg.solve(dRdx,R)
+        x = x - mdx
+        f = fun(x)
+        J = jac(t,x,kwargs)
+        R = x - f*dt
+        it = it+1
+    return [x,f,J]
+
+def rk_step_impl(fun,jac,num_methods,method,t,x,dt,kwargs):
+    c = num_methods[method]['c']
+    b = np.asarray(num_methods[method]['x'])
+    tol = 1e-5
+    maxit = 50
+    
+    X = np.zeros([np.size(x), len(c)])
+    F = np.zeros([np.size(x), len(c)])
+    T = np.zeros(len(c))
+    
+    for i in range(len(c)):
+        a = np.asarray(num_methods[method]['coef{}'.format(i)])
+        T[i] = t + c[i]*dt
+        fimpl = lambda Xi: dt*np.sum(a[i]*fun(T[i],Xi,kwargs))
+        xinit = x*c[i]*dt
+        X[:,i],f,J = NewtonSolver(fimpl,jac,t,dt,xinit,tol,maxit,kwargs)
+        F[:,i] = f
+    return T[len(c)-1], x + dt*np.sum(b*F)
+
 def fill_array(C,A,b,a):
 		nrow = A.shape[0]
 		ncol = A.shape[1]
@@ -161,7 +197,14 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                  [0,1-1/2*np.sqrt(2),1/4*np.sqrt(2)],
                  [0,0,1-1/2*np.sqrt(2)],
                  [(4-3*np.sqrt(2))/(-6+3*np.sqrt(2)), -1/3, (-4+3*np.sqrt(2))/(-3+3*np.sqrt(2))]]).T,
-                columns=['c', 'x', 'xh', 'coef0', 'coef1', 'coef2', 'd'])          
+                columns=['c', 'x', 'xh', 'coef0', 'coef1', 'coef2', 'd']),
+                'RADAU5':
+                pd.DataFrame(np.array([[(4-np.sqrt(6)/10),(4+np.sqrt(6)/10),1],
+                 [(16-np.sqrt(6))/36, (16+np.sqrt(6))/36, 1/9],
+                 [(88-7*np.sqrt(6))/360, (296-169*np.sqrt(6))/1800, (-2+3*np.sqrt(6))/225],
+                 [(296+169*np.sqrt(6))/1800, (88+7*np.sqrt(6))/360, (-2-3*np.sqrt(6))/225],
+                 [(16-np.sqrt(6))/36, (16+np.sqrt(6))/36, 1/9]]).T,
+                columns=['c', 'x', 'coef0', 'coef1', 'coef2']),
     }
 
     N      = round((t[1]-t[0])/dt)
@@ -257,7 +300,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
           
 
       return T[:j],X[:,:j],ss[:j]
-    elif (not (method in eee)) & (adap == True) & (not (method in ESDIRK)):
+    elif (not (method in eee)) & (adap == True) & (not (method in ESDIRK)) & (not (method in implicit)):
       print('Using step doubling for: {}'.format(method))
       
       T      = np.zeros((N))
@@ -311,8 +354,62 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
               																  round((T[j]/t[1])*100,2),
               																  bs))
       return T[:j],X[:,:j],ss[:j]
-    elif (method in implicit) & (method in eee):
-    	print('Nice')
+    elif ((method in implicit) & (adap==True)):
+      print ('RADAUUU')
+      print('Using step doubling for: {}'.format(method))
+      
+      T      = np.zeros((N))
+      X      = np.zeros((x.shape[0],N))
+      ss     = np.zeros((N))
+      j      = 0
+      X[:,0] = x
+      T[0]   = t[0]
+      k      = np.zeros((x.shape[0],n))
+
+      while T[j] < t[1]:
+        if(T[j]+dt>t[1]):
+            dt = t[1]-T[j]
+            
+        AcceptStep = False
+        while not AcceptStep:
+            
+          ts,xs    = rk_step_impl(fun,jac,num_methods,method,T[j],X[:,j],dt,kwargs)
+          ts,x_tmp = rk_step_impl(fun,jac,num_methods,method,T[j],X[:,j],0.5*dt,kwargs)
+          ts,x_tmp = rk_step_impl(fun,jac,num_methods,method,ts,x_tmp,0.5*dt,kwargs)
+
+          e   = np.abs(xs - x_tmp)
+          num = absTol + np.abs(x_tmp)*relTol
+          r   = np.max(e/num)
+          
+          AcceptStep = True #(r <= 1)
+          
+          if AcceptStep:
+            print(T[j])
+            X[:,j+1] = x_tmp
+            T[j+1]   = T[j] + dt
+            ss[j+1]  = dt
+            j+=1
+            if j+1==N:
+              ap = round(N/2)
+              X  = np.append(X,np.zeros((xs.shape[0],ap)),axis=1)
+              T  = np.append(T,np.zeros((ap)))
+              ss = np.append(ss,np.zeros((ap)))
+              N  = N + ap
+
+          dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
+                       facmax])])*dt
+    
+          if j%(len(X)/15)==0:
+              bs = X.nbytes/1000000
+              print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
+            																  'Step size[power]:',
+            																  'Percentage:',
+            																  'Array size[mb]:',
+            															      round(T[j],2),
+              																  round(np.log10(dt),2),
+              																  round((T[j]/t[1])*100,2),
+              																  bs))
+      return T[:j],X[:,:j],ss[:j]
     
     elif method in ESDIRK:
         print('LOS POLLOS HERMANOS')
@@ -468,8 +565,8 @@ def tf(t,x):
 def true_tf(t):
   return np.exp(t)
 
-abstol = 10**(-6)
-reltol = 10**(-6)
+abstol = 10**(-3)
+reltol = 10**(-3)
 x0 = np.array([0.5,0.5])
 
 dt = 10**(-2)
@@ -484,7 +581,7 @@ T_ESDIRK_A3,X_ESDIRK_A3,SS_ESDIRK_A3 = Runge_Kutta(VanDerPol,
                           ti,
                           dt,
                           mu,
-                          method='ESDIRK23',
+                          method='RADAU5',
                           adap=True,
                           jac=JacVanDerPol)
 

@@ -178,8 +178,10 @@ plt.plot(Tw,X.T)
 plt.show()
 
 x0 = 1
-lamda = 0.15
+lamda = 0.1
 sigma = 0.15
+Ns = 10000
+[W,Tw,dW]=ScalarStdWienerProcess(T,N,Ns,seed)
 
 P = [lamda, sigma]
 
@@ -188,8 +190,43 @@ X = np.zeros([np.size(W,0), np.size(W,1)])
 for i in range(0,Ns):
     X[i,:] = SDEeulerExplicitExplicit(GeometricBrownianDrift,GeometricBrownianDiffusion,Tw,x0,W[i,:,None],P)
 
-plt.plot(Tw,X.T)
+#x0*exp((mu-s**2/2)*t+sw)
+#np.exp(W[1,:])
+
+#x0*np.exp( (lamda-sigma**2/2)*Tw + sigma*W[4,:])
+
+mean = np.mean(X.T,axis=1)
+meanW = np.mean(W,axis=0)
+
+plt.figure()
+plt.plot(Tw,x0*np.exp( (lamda-0**2/2)*Tw + 0*W[2,:]),'g')
+plt.plot(Tw,mean, '-')
+plt.xlabel('t')
+plt.ylabel('x(t)')
+plt.legend(['analytical, sigma=0','mean of Euler–Maruyama'])
 plt.show()
+
+plt.plot(Tw,X.T)
+plt.plot(Tw,mean,'black',linewidth=3)
+plt.plot(Tw,np.std(X.T,axis=1)+mean,'black',linewidth=3)
+plt.plot(Tw,-np.std(X.T,axis=1)+mean,'black',linewidth=3)
+plt.xlim([Tw[0],Tw[-1]])
+plt.xlabel('t')
+plt.ylabel('x(t)')
+plt.show()
+
+plt.subplot(121)
+plt.plot(Tw,x0*np.exp( (lamda-sigma**2/2)*Tw + sigma*W[2,:]) ,'g',Tw,X.T[:,2],'-')
+plt.xlabel('t')
+plt.ylabel('x(t)')
+plt.legend(['analytical','Euler–Maruyama'])
+plt.subplot(122)
+plt.plot(Tw,x0*np.exp( (lamda-sigma**2/2)*Tw + sigma*W[2,:]) ,'g',Tw,X.T[:,2],'-')
+plt.xlabel('t')
+plt.ylabel('x(t)')
+plt.legend(['analytical','Euler–Maruyama'])
+plt.show()
+
 #
 #
 #[W,Tw,dW]=ScalarStdWienerProcess(T,N,Ns,seed)
@@ -214,6 +251,13 @@ seed = 1002
 
 [W,T,dW]=StdWienerProcess(tf,N,Nw,Ns,seed)
 
+plt.plot(T,W[1,:,:])
+plt.title(str(Ns) + ' realizations of the standard Wiener process')
+plt.xlabel('t')
+plt.ylabel('W(t)')
+plt.xlim([T[0],T[-1]])
+plt.show()
+
 X = np.zeros([np.size(x0), N+1, Ns])
 Ximpl = np.zeros([np.size(x0), N+1, Ns])
 
@@ -228,7 +272,7 @@ r = ode(lambda t,x,p: VanderpolDrift(t,x,p)[0],
                                       method='bdf',
                                       with_jacobian=True,
                                       order=15)
-r.set_initial_value(x0, 0).set_f_params(p).set_jac_params(p)
+r.set_initial_value(x0, 0).set_f_params(P).set_jac_params(P)
 x_sci_s = [[],[]]
 t       = np.arange(0,tf+0.01,0.01)
 # Solving using the scipy solver
@@ -237,14 +281,42 @@ while r.successful() and r.t < tf:
     x_sci_s[0].append(xn[0])
     x_sci_s[1].append(xn[1])
 
+plt.figure()
+#plt.title('Solution for the stochastic VDP problem wuth mu=' +str(mu)+ ', sigma='+str(sigma))
+plt.subplot(131)
 plt.plot(T, X[0,:,:])
 plt.plot(t, x_sci_s[0], 'black', linewidth=3)
-plt.show()
+plt.xlabel('t')
+plt.ylabel('X1')
+plt.subplot(132)
 plt.plot(T, X[1,:,:])
 plt.plot(t, x_sci_s[1], 'black', linewidth=3)
-plt.show()
+plt.xlabel('t')
+plt.ylabel('X2')
+plt.subplot(133)
 plt.plot(X[0,:,:],X[1,:,:])
 plt.plot(x_sci_s[0],x_sci_s[1], 'black', linewidth=3)
+plt.xlabel('X1')
+plt.ylabel('X2')
+plt.show()
+
+plt.figure()
+#plt.title('Solution for the stochastic VDP problem wuth mu=' +str(mu)+ ', sigma='+str(sigma))
+plt.subplot(131)
+plt.plot(T, Ximpl[0,:,:])
+plt.plot(t, x_sci_s[0], 'black', linewidth=3)
+plt.xlabel('t')
+plt.ylabel('X1')
+plt.subplot(132)
+plt.plot(T, Ximpl[1,:,:])
+plt.plot(t, x_sci_s[1], 'black', linewidth=3)
+plt.xlabel('t')
+plt.ylabel('X2')
+plt.subplot(133)
+plt.plot(Ximpl[0,:,:],Ximpl[1,:,:])
+plt.plot(x_sci_s[0],x_sci_s[1], 'black', linewidth=3)
+plt.xlabel('X1')
+plt.ylabel('X2')
 plt.show()
 
 #plt.plot(t, x_sci_s[0], t ,x_sci_s[1])
