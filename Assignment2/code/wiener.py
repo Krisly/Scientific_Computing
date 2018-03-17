@@ -197,7 +197,7 @@ plt.show()
 #
 
 mu = 3
-sigma = 0.5
+sigma = 1
 x0 = [0.5, 0.5]
 P = [mu, sigma]
 tf = 5*mu
@@ -210,7 +210,7 @@ seed = 1002
 X = np.zeros([np.size(W,0), np.size(W,1)])
 X = np.zeros([np.size(x0), N+1, Ns])
 for i in range(0,Ns):
-    X[:,:,i] = SDEeulerExplicitExplicit(lambda t,x,p: VanderpolDrift(t,x,p)[0],VanderPolDiffusion2,T,x0,W[:,:,i].T,P)
+    X[:,:,i] = SDEeulerExplicitExplicit(lambda t,x,p: VanderpolDrift(t,x,p)[0],VanderPolDiffusion1,T,x0,W[:,:,i].T,P)
     
 
 
