@@ -514,6 +514,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                 Xstage[:,1] = X[:,j]
                 Fstage[:,1] = Fprev
                 
+                #alpha = alpharef
+                
                 for i in range(2,s+1):
                     Psistage[:,i] = Xstage[:,1] + dt*  np.sum(np.array([a[i-1,z]*Fstage[:,z] for z in range(1,i)]), axis=0)
                     Tstage[i] = T[j] + c[i-1]*dt
@@ -524,6 +526,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                     rnewt = np.max(np.abs(Rstage[:,i])/(absTol + np.abs(Xstage[:,i])*relTol))
                     diverging = False
                     
+                    prevXs = np.zeros([len(Xstage[:,i]), 3])
+                    prevXs[:,0] = Xstage[:,i]
                     while (rnewt > (1) & (not diverging)):
                         Dx = scipy.linalg.lu_solve((LU, P),Rstage[:,i])
 
@@ -533,15 +537,24 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                         Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
                         Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
                         
+                        prevXs = np.roll(prevXs,1)
+                        prevXs[:,0] = Xstage[:,i]
+                        
                         rnewt = np.max(np.abs(Rstage[:,i])/(absTol + np.abs(Xstage[:,i])*relTol))
+                        
                         alpha = np.max([alpha, rnewt/rprev])
+                        #print(prevXs)
+                        #alpha = np.max([alpha, np.linalg.norm(prevXs[:,0]-prevXs[:,1])/np.linalg.norm(prevXs[:,1]-prevXs[:,2])])
+                        
                         if (alpha >= 1):
                             diverging = True
-
+                    #print (alpha)
                     dtalpha = alpharef/alpha*dt
+                
                 e = np.abs(dt* np.array([d[z-i]*Fstage[:,z] for z in range(1,s)]))
                 num = absTol + np.abs(Xstage[:,s-1])*relTol
                 r   = np.max(e/num)
+                #print(r)
                 AcceptStep = (r <= 1) & (not diverging)
                 
                 if AcceptStep:
@@ -559,6 +572,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                       N = N + ap
                       
                 dt = (epsTol/r)**(1/3)*dt
+                #print(dt)
                 dt = np.min([dt,dtalpha])
         
             if j%(len(X)/100)==0:
@@ -574,6 +588,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
         return T[:j],X[:,:j],ss[:j]
     else:
       print('Parameters not specified correctly')
+
+Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,25],0.01,10,method='ESDIRK23',adap=True,jac=JacVanDerPol)
 
 
 def tf(t,x,mu):
@@ -614,14 +630,6 @@ ti  = [0,10]
 mu = 1
 ti  = [0,50]
 
-T_ESDIRK_A3,X_ESDIRK_A3,SS_ESDIRK_A3 = Runge_Kutta(VanDerPol,
-                          x0,
-                          ti,
-                          dt,
-                          mu,
-                          method='RADAU5',
-                          adap=True,
-                          jac=JacVanDerPol)
 
 
 r = ode(VanDerPol,
@@ -629,6 +637,10 @@ r = ode(VanDerPol,
                                       method='bdf',
                                       with_jacobian=True,
                                       order=15)
+
+
+
+
 r.set_initial_value(x0, ti[0]).set_f_params(mu).set_jac_params(mu)
 x_sci_s = [[],[]]
 t       = np.arange(0,ti[1]+0.01,0.01)
@@ -638,18 +650,8 @@ while r.successful() and r.t < ti[1]:
     x_sci_s[0].append(xn[0])
     x_sci_s[1].append(xn[1])
 
-plt.plot(T_ESDIRK_A3, SS_ESDIRK_A3)
-plt.show()
-plt.plot(T_ESDIRK_A3, X_ESDIRK_A3[0,:], T_ESDIRK_A3, X_ESDIRK_A3[1,:])
-plt.show()
-plt.plot(X_ESDIRK_A3[0,:], X_ESDIRK_A3[1,:])
-plt.show()
-plt.plot(t, x_sci_s[0], t ,x_sci_s[1])
-plt.show()
-plt.plot(x_sci_s[0],x_sci_s[1])
-plt.show()
 
-asdasdasdas
+
 
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           x0,
@@ -669,7 +671,7 @@ T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
 T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
                           x0,
                           ti,
-                          10**(-7),
+                          10**(-5),
                           mu,
                           method='Dormand-Prince')
 
@@ -735,9 +737,140 @@ plt.legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 plt.show()
 
 
+abstol = 10**(-4)
+reltol = 10**(-4)
+x0 = np.array([0.5,0.5])
 
+dt = 10**(-2)
+
+mu = 3
+ti  = [0,25]
+
+T_RADAU,X_RADAU,SS_RADAU = Runge_Kutta(VanDerPol,
+                                      x0,
+                                      ti,
+                                      dt,
+                                      mu,
+                                      method='RADAU5',
+                                      adap=True,
+                                      jac=JacVanDerPol)
+T_ESDIRK,X_ESDIRK,SS_ESDIRK = Runge_Kutta(VanDerPol,
+                                          x0,
+                                          ti,
+                                          dt,
+                                          mu,
+                                          method='ESDIRK23',
+                                          adap=True,
+                                          jac=JacVanDerPol)
+
+
+mu = 10
+ti  = [0,25]
+
+
+T_RADAU2,X_RADAU2,SS_RADAU2 = Runge_Kutta(VanDerPol,
+                                      x0,
+                                      ti,
+                                      dt,
+                                      mu,
+                                      method='RADAU5',
+                                      adap=True,
+                                      jac=JacVanDerPol)
+T_ESDIRK2,X_ESDIRK2,SS_ESDIRK2 = Runge_Kutta(VanDerPol,
+                                          x0,
+                                          ti,
+                                          dt,
+                                          mu,
+                                          method='ESDIRK23',
+                                          adap=True,
+                                          jac=JacVanDerPol)
+
+
+mu = 3
+ti  = [0,25]
+
+fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
+
+ax[0].plot(T_ESDIRK, X_ESDIRK[0,:], label='X_1')
+ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[0].set_xticks([])
+
+ax[1].plot(T_ESDIRK, X_ESDIRK[1,:], 'orange', label='X_2')
+ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[1].set_xticks([])
+
+ax[2].plot(T_ESDIRK, SS_ESDIRK, 'red', label='StepSize')
+ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+
+fig.savefig('ESDIRK1.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+mu = 10
+
+fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
+
+ax[0].plot(T_ESDIRK2, X_ESDIRK2[0,:], label='X_1')
+ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[0].set_xticks([])
+
+ax[1].plot(T_ESDIRK2, X_ESDIRK2[1,:], 'orange', label='X_2')
+ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[1].set_xticks([])
+
+ax[2].plot(T_ESDIRK2, SS_ESDIRK2, 'red', label='StepSize')
+ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+
+fig.savefig('ESDIRK2.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+mu = 3
+
+fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
+
+ax[0].plot(T_RADAU, X_RADAU[0,:], label='X_1')
+ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[0].set_xticks([])
+
+ax[1].plot(T_RADAU, X_RADAU[1,:], 'orange', label='X_2')
+ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[1].set_xticks([])
+
+ax[2].plot(T_RADAU, SS_RADAU, 'red', label='StepSize')
+ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+
+fig.savefig('RADAU1.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+mu = 10
+
+
+fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
+
+ax[0].plot(T_RADAU2, X_RADAU2[0,:], label='X_1')
+ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[0].set_xticks([])
+
+ax[1].plot(T_RADAU2, X_RADAU2[1,:], 'orange', label='X_2')
+ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+ax[1].set_xticks([])
+
+ax[2].plot(T_RADAU2, SS_RADAU2, 'red', label='StepSize')
+ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
+
+fig.savefig('RADAU2.eps', format='eps', dpi=500, bbox_inches='tight')
 
 #cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
 
 
+#cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,25],0.01,10,method='Classic',adap=True,jac=JacVanDerPol)",sort='cumtime')
 
+#Radau5 : fcalls 12120
+#jcalls 690
+#steps 126
+
+#ESDIRK23 : fcalls 162567
+#jcalls 81273
+#steps 81273
+
+#ERK4 : fcalls 9840
+#steps: 413
