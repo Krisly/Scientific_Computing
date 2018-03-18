@@ -70,6 +70,20 @@ def JacPreyPredator(t,x,params):
 def PreyPredatorfunjac(t,x,params):
     return [PreyPredator(t,x,params), JacPreyPredator(t,x,params)]
 
+def testEqn(t,x,p):
+    lamda = p[0]
+    return lamda*x
+
+def JacTestEqn(t,x,p):
+    return p[0]
+
+def testEqnFunJac(t,x,p):
+    return testEqn(t,x,p), JacTestEqn(t,x,p)
+
+def testEqnAnalyt(t,x0,p):
+    lamda = p[0]
+    return x0*np.exp(lamda*t)
+
 def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
   for i in range(len(num_methods[method]['c'])):
     k[:,i] = fun(t + num_methods[method]['c'][i]*dt,
@@ -601,7 +615,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
     else:
       print('Parameters not specified correctly')
 
-Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,25],0.01,10,method='ESDIRK23',adap=True,jac=JacVanDerPol)
+#Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,25],0.01,10,method='ESDIRK23',adap=True,jac=JacVanDerPol)
 
 
 def tf(t,x,mu):
@@ -711,6 +725,98 @@ T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
 
 '''
 
+
+
+dt = 10**(-2)
+lamda = -1
+x0  = np.array([1])
+ti = [0,20]
+
+T_AK32,X_AK32,SS_AK32 = Runge_Kutta(testEqn,
+                                      x0,
+                                      ti,
+                                      dt,
+                                      [lamda],
+                                      method='AK32',
+                                      adap=True,
+                                      jac=JacTestEqn)
+
+fig, ax = plt.subplots(2, 1, figsize=(15,10), sharex=False)
+
+ax[0].plot(T_AK32,X_AK32[0,:],label='Developed RK scheme')
+ax[0].set_title('Solution to the test problem - Developed RK scheme')
+ax[0].set_xticks([])
+ax[0].set_ylabel('x')
+
+ax[1].plot(T_AK32,SS_AK32,label='Step Size')
+ax[1].set_title('Step size')
+ax[1].set_xlabel('t')
+ax[1].set_ylabel('dt')
+plt.show()
+
+fig.savefig('3-1-4.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+x0 = np.array([0.5,0.5])
+
+abstol = 10**(-4)
+reltol = 10**(-4)
+
+dt = 10**(-2)
+mu = 3
+ti  = [0,5*mu]
+
+T_AK32,X_AK32,SS_AK32 = Runge_Kutta(VanDerPol,
+                                      x0,
+                                      ti,
+                                      dt,
+                                      mu,
+                                      method='AK32',
+                                      adap=True,
+                                      jac=JacVanDerPol)
+
+
+r = ode(VanDerPol,
+        JacVanDerPol).set_integrator('vode',
+                                      method='bdf',
+                                      with_jacobian=True,
+                                      order=15)
+r.set_initial_value(x0, ti[0]).set_f_params(mu).set_jac_params(mu)
+x_sci_s = [[],[]]
+t       = np.arange(0,ti[1]+0.01,0.01)
+# Solving using the scipy solver
+while r.successful() and r.t < ti[1]:
+    xn = r.integrate(r.t+0.01)
+    x_sci_s[0].append(xn[0])
+    x_sci_s[1].append(xn[1])
+
+
+fig, ax = plt.subplots(2, 1, figsize=(15,10), sharex=False)
+# Plotting the results
+ax[0].plot(t[:len(x_sci_s[0][:])],x_sci_s[0][:],'-o',label='Scipy')
+#ax[0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
+ax[0].plot(T_AK32,X_AK32[0,:],'-o',label='RK4 AS')
+#ax[0].plot(T_DP_3,X_DP_3[0,:],'-o',label='DP54 AS')
+#ax[0].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
+ax[0].set_title(r'Phase one of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
+ax[0].set_xticks([])
+ax[0].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
+
+ax[1].plot(t[:len(x_sci_s[1][:])],x_sci_s[1][:],'-o',label='Scipy')
+#ax[1].plot(T_C_3,X_C_3[1,:],label='RK4 FS')
+ax[1].plot(T_AK32,X_AK32[1,:],'-o',label='RK4 AS')
+#ax[1].plot(T_DP_3,X_DP_3[1,:],'-o',label='DP54 AS')
+#ax[1].plot(T_BS_3,X_BS_3[1,:],label='BS AS')
+ax[1].set_title(r'Phase two of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
+ax[1].set_xticks([])
+ax[1].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
+
+plt.show()
+
+fig.savefig('3-1-7.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+
 abstol = 10**(-4)
 reltol = 10**(-4)
 x0 = np.array([0.5,0.5])
@@ -718,6 +824,7 @@ x0 = np.array([0.5,0.5])
 dt = 10**(-2)
 mu = 10
 ti  = [0,5*mu]
+
 
 
 r = ode(VanDerPol,
@@ -849,10 +956,6 @@ ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, relto
 
 fig.savefig('ESDIRK1.eps', format='eps', dpi=500, bbox_inches='tight')
 
-
-<<<<<<< HEAD
-#cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),3,method='Classic',adap=True)",sort='cumtime')
-=======
 mu = 10
 
 fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
@@ -922,4 +1025,3 @@ fig.savefig('RADAU2.eps', format='eps', dpi=500, bbox_inches='tight')
 
 #ERK4 : fcalls 9840
 #steps: 413
->>>>>>> c56350cbe0379228d2c0548e216c43afab315c3d
