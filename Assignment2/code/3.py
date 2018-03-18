@@ -11,16 +11,20 @@ import helperFunctions as hF
 import matplotlib.pyplot as plt
 
 def testEqn(t,x,p):
+    # function for the test problem
     lamda = p[0]
     return lamda*x
 
 def JacTestEqn(t,x,p):
+    # jacobian for the test problem, in this case simply derivative
     return p[0]
 
 def testEqnFunJac(t,x,p):
+    # combinatory function
     return testEqn(t,x,p), JacTestEqn(t,x,p)
 
 def testEqnAnalyt(t,x0,p):
+    # analytical solution for the test problem
     lamda = p[0]
     return x0*np.exp(lamda*t)
 
