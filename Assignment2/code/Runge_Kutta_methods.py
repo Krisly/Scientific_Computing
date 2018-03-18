@@ -71,11 +71,10 @@ def PreyPredatorfunjac(t,x,params):
     return [PreyPredator(t,x,params), JacPreyPredator(t,x,params)]
 
 def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
-	for i in range(len(num_methods[method]['c'])):
-		k[:,i] = fun(t + num_methods[method]['c'][i]*dt,
-        			 x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),
-                     kwargs)
-	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
+  for i in range(len(num_methods[method]['c'])):
+    k[:,i] = fun(t + num_methods[method]['c'][i]*dt,
+                  x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),kwargs)
+  return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
 def NewtonSolver(fun,jac,t,dt,xinit,tol,maxit,kwargs):
     I = np.eye(np.size(xinit))
@@ -154,40 +153,40 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
     num_methods = {'Classic':
                 pd.DataFrame(np.array([[0,1/2,1/2,1],
                                       [1/6,1/3,1/3,1/6],
+                                      [0,0,0,0],
+                                      [1/2,0,0,0],
                                       [0,1/2,0,0],
-                                      [0,0,1/2,0],
-                                      [0,0,0,1],
-                                      [0,0,0,0]]).T,
+                                      [0,0,1,0]]).T,
                 columns=['c', 'x','coef0', 'coef1', 'coef2', 'coef3']),
                 '3/8-rule':
                 pd.DataFrame(np.array([[0,1/3,2/3,1],
                                       [1/8,3/8,3/8,1/8],
-                                      [0,1/3,-1/3,1],
-                                      [0,0,1,-1],
-                                      [0,0,0,1],
-                                      [0,0,0,0]]).T,
+                                      [0,0,0,0],
+                                      [1/3,0,0,0],
+                                      [-1/3,1,0,0],
+                                      [1,-1,1,0]]).T,
                 columns=['c', 'x','coef0', 'coef1', 'coef2', 'coef3']),
                 'Dormand-Prince':
                 pd.DataFrame(np.array([[0,1/5,3/10,4/5,8/9,1,1],
                  [35/384,0,500/1113,125/192,-2187/6784,11/84,0],
                  [5179/57600,0,7571/16695,393/640,-92097/339200,187/2100,1/40],
-                 [0,1/5,3/40,44/45,19372/6561,9017/3168,35/384],
-                 [0,0,9/40,-56/15,-25360/2187,-355/33,0],
-                 [0,0,0,32/9,64448/6561,46732/5247,500/1113],
-                 [0,0,0,0,-212/729,49/176,125/192],
-                 [0,0,0,0,0,-5103/18656,-2187/6784],
-                 [0,0,0,0,0,0,11/84],
-                 [0,0,0,0,0,0,0]],dtype=np.float64).T,
+                 [0,0,0,0,0,0,0],
+                 [1/5,0,0,0,0,0,0],
+                 [3/40,9/40,0,0,0,0,0],
+                 [44/45,-56/15,32/9,0,0,0,0],
+                 [19372/6561,-25360/2187,64448/6561,-212/729,0,0,0],
+                 [9017/3168,-355/33,46732/5247,49/176,-5103/18656,0,0],
+                 [35/384,0,500/1113,125/192,-2187/6784,11/84,0]],dtype=np.float64).T,
                 columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3',
                          'coef4','coef5','coef6']),
                 'Bogacki–Shampine':
                 pd.DataFrame(np.array([[0,1/2,3/4,1],
                  [2/9,1/3,4/9,0],
                  [2/9,1/3,4/9,1/8],
-                 [0,1/2,0,2/9],
-                 [0,0,3/4,1/3],
-                 [0,0,0,4/9],
-                 [0,0,0,0]]).T,
+                 [0,0,0,0],
+                 [1/2,0,0,0],
+                 [0,3/4,0,0],
+                 [2/9,1/3,4/9,0]]).T,
                 columns=['c', 'x','xh','coef0', 'coef1', 'coef2', 'coef3']),
                 'ESDIRK23':
                 pd.DataFrame(np.array([[0,2-np.sqrt(2),1],
@@ -207,25 +206,25 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                 columns=['c', 'x', 'coef0', 'coef1', 'coef2']),
     }
 
-    N      = round((t[1]-t[0])/dt)
+    N      = np.int64(round((t[1]-t[0])/dt))
     n      = len(num_methods[method]['c'])
-    k      = np.zeros((x.shape[0],n))
+    k      = np.zeros((x.shape[0],n),dtype=np.float64)
     absTol = 10**(-4)
     relTol = 10**(-4)
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
-
-    eee      = ['Dormand-Prince', 'Bogacki–Shampine']
+    #print(num_methods[method])
+    eee      = ['Dormand-Prince','Bogacki–Shampine']
     implicit = ['RADAU5']
     ESDIRK = ['ESDIRK23']
 
     if (not (method in eee)) & (adap == False):
       print('Using fixed step size for: {}'.format(method))
 
-      X    = np.zeros((x.shape[0],N))
+      X    = np.zeros((x.shape[0],N),dtype=np.float64)
       X[:,0] = x
-      T    = np.zeros((N))
+      T    = np.zeros((N),dtype=np.float64)
       T[0] = t[0]
 
       for j in range(N-1):
@@ -279,13 +278,13 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
 
             j+=1
             if j+1==N:
-              ap  = round(N/2)
+              ap  = np.int64(round(N/2))
               X  = np.append(X,np.zeros((xs.shape[0],ap)),axis=1)
               T  = np.append(T,np.zeros((ap)))
               ss = np.append(ss,np.zeros((ap)))
               N = N + ap
 
-          if j%(len(X)/15)==0:
+          if j%(np.int64(round(len(X)/15)))==0:
             bs = X.nbytes/1000000
             print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
             																  'Step size[power]:',
@@ -343,16 +342,16 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
           dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
                        facmax])])*dt
     
-          if j%(len(X)/15)==0:
-              bs = X.nbytes/1000000
-              print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
-            																  'Step size[power]:',
-            																  'Percentage:',
-            																  'Array size[mb]:',
-            															      round(T[j],2),
-              																  round(np.log10(dt),2),
-              																  round((T[j]/t[1])*100,2),
-              																  bs))
+          if j%(np.int64(round(len(X)/15)))==0:
+            bs = X.nbytes/1000000
+            print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
+                                              'Step size[power]:',
+                                              'Percentage:',
+                                              'Array size[mb]:',
+                                                round(T[j],2),
+                                                round(np.log10(dt),2),
+                                                round((T[j]/t[1])*100,2),
+                                                bs))
       return T[:j],X[:,:j],ss[:j]
     elif ((method in implicit) & (adap==True)):
       print ('RADAUUU')
@@ -399,7 +398,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
           dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
                        facmax])])*dt
     
-          if j%(len(X)/15)==0:
+          if j%(len(X)/100)==0:
               bs = X.nbytes/1000000
               print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
             																  'Step size[power]:',
@@ -534,7 +533,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                     j+=1
                     
                     if j+1==N:
-                      ap  = round(N/2)
+                      ap  = np.int32(round(N/2))
                       X  = np.append(X,np.zeros((Xstage.shape[0],ap)),axis=1)
                       T  = np.append(T,np.zeros((ap)))
                       ss = np.append(ss,np.zeros((ap)))
@@ -544,7 +543,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                 dt = np.min([dt,dtalpha])
                 #print (dt)
         
-            if j%(len(X)/15)==0:
+            if j%(len(X)/100)==0:
                 bs = X.nbytes/1000000
                 print("{:<8} {:<8} {:<8} {:<8} \n {:>8} {:>17} {:>11} {:>15}".format('Time step:',
                     																  'Step size[power]:',
@@ -559,22 +558,43 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
       print('Parameters not specified correctly')
 
 
-def tf(t,x):
-  return x
+def tf(t,x,mu):
+  return -x[0]
 
 def true_tf(t):
-  return np.exp(t)
+  return np.exp(-t)
+
+'''
+dt = np.linspace(1e-2,1e-1,num=200)
+sol = np.zeros(np.size(dt))
+x0 = np.array([1,1])
+for i in range(len(dt)):
+  t,x,ss = Runge_Kutta(tf,
+                    x0,
+                    [0,1],
+                    dt[i],
+                    -1,
+                    method='Dormand-Prince')
+
+  sol[i] = np.amax(np.abs(x[1]-true_tf(t)))
+
+#plt.plot(np.log(dt),np.log(sol),label='LTE RK')
+#plt.plot(np.log(dt),np.log(dt**5),label='O(5)')
+plt.plot(t,ss)
+#plt.legend(loc='best')
+plt.show()
+'''
 
 abstol = 10**(-3)
 reltol = 10**(-3)
 x0 = np.array([0.5,0.5])
 
 dt = 10**(-2)
-mu = 3
+mu = 30
 ti  = [0,100]
 
-mu = 1
-ti  = [0,10]
+mu = 30
+ti  = [0,90]
 
 T_ESDIRK_A3,X_ESDIRK_A3,SS_ESDIRK_A3 = Runge_Kutta(VanDerPol,
                           x0,
@@ -599,7 +619,7 @@ while r.successful() and r.t < ti[1]:
     xn = r.integrate(r.t+0.01)
     x_sci_s[0].append(xn[0])
     x_sci_s[1].append(xn[1])
-
+'''
 plt.plot(T_ESDIRK_A3, SS_ESDIRK_A3)
 plt.show()
 plt.plot(T_ESDIRK_A3, X_ESDIRK_A3[0,:], T_ESDIRK_A3, X_ESDIRK_A3[1,:])
@@ -610,7 +630,13 @@ plt.plot(t, x_sci_s[0], t ,x_sci_s[1])
 plt.show()
 plt.plot(x_sci_s[0],x_sci_s[1])
 plt.show()
-asdasdasd
+'''
+T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
+                          x0,
+                          ti,
+                          dt,
+                          mu,
+                          method='Classic')
 
 T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
                           x0,
@@ -623,7 +649,7 @@ T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
 T_DP_3,X_DP_3,SS_DP_3 = Runge_Kutta(VanDerPol,
                           x0,
                           ti,
-                          dt,
+                          10**(-7),
                           mu,
                           method='Dormand-Prince')
 
@@ -654,7 +680,7 @@ fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 ax[0].plot(t[:len(x_sci_s[0][:])],x_sci_s[0][:],label='Scipy')
 ax[0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
 ax[0].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
-ax[0].plot(T_DP_3,X_DP_3[0,:],label='DP54 AS')
+ax[0].plot(T_DP_3,X_DP_3[0,:],'-o',label='DP54 AS')
 ax[0].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
 ax[0].set_title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
 ax[0].set_xticks([])
@@ -664,7 +690,7 @@ ax[0].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 ax[1].plot(t[:len(x_sci_s[1][:])],x_sci_s[1][:],label='Scipy')
 ax[1].plot(T_C_3,X_C_3[1,:],label='RK4 FS')
 ax[1].plot(T_C_A3,X_C_A3[1,:],label='RK4 AS')
-ax[1].plot(T_DP_3,X_DP_3[1,:],label='DP54 AS')
+ax[1].plot(T_DP_3,X_DP_3[1,:],'-o',label='DP54 AS')
 ax[1].plot(T_BS_3,X_BS_3[1,:],label='BS AS')
 ax[1].set_title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
 ax[1].set_xticks([])
@@ -682,7 +708,7 @@ plt.figure()
 plt.plot(x_sci_s[0][:],x_sci_s[1][:],label='Scipy')
 plt.plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
 plt.plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
-plt.plot(X_DP_3[0,:],X_DP_3[1,:],label='DP54 AS')
+plt.plot(X_DP_3[0,:],X_DP_3[1,:],'-o',label='DP54 AS')
 plt.plot(X_BS_3[0,:],X_BS_3[1,:],label='BS AS')
 plt.title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
 plt.legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
@@ -691,7 +717,7 @@ plt.show()
 
 
 
-cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
+#cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),mu,method='Bogacki–Shampine',adap=True)",sort='cumtime')
 
 
 
