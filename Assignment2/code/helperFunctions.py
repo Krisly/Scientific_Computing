@@ -9,10 +9,10 @@ import numpy as np
 
 
 def NewtonsMethod(ResidualFunJac, x0, tol, maxit, varargin):
+    # General Newton's method
     k = 0
     x = x0
     [R,dRdx] = ResidualFunJac(x,varargin)
-    print(R, dRdx)
     while (k < maxit) and (np.linalg.norm(R,np.inf) > tol):
         k += 1
         dx = np.linalg.solve(dRdx,R)
@@ -22,6 +22,7 @@ def NewtonsMethod(ResidualFunJac, x0, tol, maxit, varargin):
 
 
 def NewtonsMethodODE(FunJac, tk, xk, dt, xinit, tol, maxit, varargin):
+    # Newton's method for single stage RK schemes (Euler's)
     k = 0
     t = tk + dt
     x = xinit
@@ -42,6 +43,7 @@ def NewtonsMethodODE(FunJac, tk, xk, dt, xinit, tol, maxit, varargin):
 
 
 def ExplicitEulerFixedStepSize(fun,ta,tb,N,xa,kwargs):
+    # Explicit Euler's, fixed step size
     dt = (tb-ta)/N
     nx = np.size(xa)
     X  = np.zeros([N+1,nx])
@@ -56,6 +58,7 @@ def ExplicitEulerFixedStepSize(fun,ta,tb,N,xa,kwargs):
 
 
 def ExplicitEulerAdaptiveStep(fun,tspan,x0,h0,abstol,reltol,kwargs):
+    # Explicit Euler's, adaptive step size (infinity norm)
     maxiter = 10
     epstol = 0.8
     facmin = 0.1
@@ -63,11 +66,9 @@ def ExplicitEulerAdaptiveStep(fun,tspan,x0,h0,abstol,reltol,kwargs):
     
     t0 = tspan[0]
     tf= tspan[1]
-    
     t = t0
     h = h0
     x = np.reshape(x0, (-1, 2))
-    
     T = np.transpose(t)
     X = (x)
     
@@ -81,27 +82,20 @@ def ExplicitEulerAdaptiveStep(fun,tspan,x0,h0,abstol,reltol,kwargs):
         
         while not AcceptStep:
             x1 = x + h*f
-            
             hm = 0.5*h
             tm = t + hm
             xm = x + hm*f
-            
             fm = fun(tm,xm[0],kwargs)
-            
             x1hat = xm + hm*fm
-            
             e = x1hat - x1
             
-            
             r = max(max(abs(e)/np.maximum(abstol, abs(x1hat)*reltol)))
-            #print(e)
-            #print(r)
+
             AcceptStep = r <= 1
-            #print(AcceptStep)
+
             if AcceptStep:
                 t = t+h
                 x = x1hat
-                
                 T = np.append( T, t)
                 X = np.append( X, x ,axis=0 )
             h = np.maximum(facmin,np.minimum(np.sqrt(epstol/r),facmax))*h
