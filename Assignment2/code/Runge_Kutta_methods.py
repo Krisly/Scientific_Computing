@@ -85,43 +85,15 @@ def testEqnAnalyt(t,x0,p):
     return x0*np.exp(lamda*t)
 
 def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
+  # general RK steping function 
   for i in range(len(num_methods[method]['c'])):
     k[:,i] = fun(t + num_methods[method]['c'][i]*dt,
                   x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),kwargs)
   return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
-def NewtonSolver(fun,jac,psi,a,t,dt,xinit,tol,maxit,kwargs):
-    I = np.eye(np.size(xinit))
-    x = xinit
-    f = fun(x)
-    J = jac(t,x,kwargs)
-    R = x - a*f*dt - psi
-    it = 1
-    dRdx = I - J*dt
-    while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
-        mdx = np.linalg.solve(dRdx,R)
-        x = x - mdx
-        f = fun(x)
-        J = jac(t,x,kwargs)
-        R = x - f*dt -psi
-        it = it+1
-    return [x,f,J]
-
-def temp(xinit,ffun,varargin,tol,maxit,psi):
-    I = np.eye(np.size(xinit))
-    x = xinit
-    [f,J] = ffun(t,x,varargin)
-    R = x - f[0]*dt - psi
-    it = 1
-    while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
-        dRdx = I - J*dt
-        mdx = np.linalg.solve(dRdx,R)
-        x = x - mdx
-        [f,J] = ffun(t,x,varargin)
-        R = x - f[0]*dt - psi
-        it = it+1
 
 def rk_step_impl(fun,jac,num_methods,method,tn,xn,dt,kwargs):
+    # general implicit RK stepping function
     c = num_methods[method]['c']
     b = np.asarray(num_methods[method]['x'])
     a = np.zeros([len(c), len(b)])
@@ -133,10 +105,10 @@ def rk_step_impl(fun,jac,num_methods,method,tn,xn,dt,kwargs):
     Xn = np.zeros([np.size(xn), len(c)])
     F = np.zeros([np.size(xn), len(c)])
     T = np.zeros(len(c))
-    
     T = tn + c*dt
     J = jac(T,xn,kwargs)
     
+    # variable initilizations
     for i in range(len(c)):
         X[:,i] = xn
         Xn[:,i] = xn
@@ -146,15 +118,17 @@ def rk_step_impl(fun,jac,num_methods,method,tn,xn,dt,kwargs):
     R = np.zeros([len(xn), len(c)])
     Fs = np.array([F[:,q] for q in range(len(c))])
 
+    # intial residual calculation
     for i in range(len(c)):
         R[:,i] = X[:,i] - Xn[:,i] - dt*np.sum(a[:,i]*Fs.T,axis = 1).T
     
     huge = np.concatenate([np.concatenate([a[q,i]*J for q in range(len(c))],axis=1) for i in range(len(c))])
-    dRdx = np.eye(len(c)*len(xn)) - dt*huge # np.zeros([len(c)*len(xn), len(c)*len(xn)])
+    dRdx = np.eye(len(c)*len(xn)) - dt*huge
 
     it = 1
     R = (np.concatenate(R.T))
 
+    # Newton's method main loop
     while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
         mdx = np.linalg.solve(dRdx,R.T)
         mdx = (np.reshape(mdx, [len(c), len(xn)]).T)
@@ -167,11 +141,12 @@ def rk_step_impl(fun,jac,num_methods,method,tn,xn,dt,kwargs):
             R[:,i] = X[:,i] - Xn[:,i] - dt*np.sum(a[:,i]*Fs.T,axis = 1).T
         R = (np.concatenate(R.T))
         huge = np.concatenate([np.concatenate([a[q,i]*J for q in range(len(c))],axis=1) for i in range(len(c))])
-        dRdx = np.eye(len(c)*len(xn)) - dt*huge # np.zeros([len(c)*len(xn), len(c)*len(xn)])
+        dRdx = np.eye(len(c)*len(xn)) - dt*huge
         it += 1
     return T[len(c)-1], X[:,len(c)-1]
 
 def fill_array(C,A,b,a):
+          # helper function for the stability region plotting
 		nrow = A.shape[0]
 		ncol = A.shape[1]
 	
@@ -189,7 +164,7 @@ def fill_array(C,A,b,a):
 		return C
 
 def plot_stab_reg(C,A,b):
-
+     # stability region plotting
 	xmin = -5
 	xmax = 5
 	ymin = -5
@@ -199,15 +174,15 @@ def plot_stab_reg(C,A,b):
 	a = xv + 1j*yv
 	
 	t = fill_array(C,A,b,a)
-	#print(t/np.amax(t))
-	#plt.scatter(a.real,a.imag, c = t,cmap='hsv')
 	plt.imshow(t,cmap='hsv',extent=[xmin, xmax, ymax, ymin],interpolation='bilinear')
 	plt.colorbar()
 	plt.show()
 
 
 def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
-
+    # Runge-Kutta Swiss army knife
+    
+    # declaring the various methods and coefficients
     num_methods = {'Classic':
                 pd.DataFrame(np.array([[0,1/2,1/2,1],
                                       [1/6,1/3,1/3,1/6],
@@ -290,12 +265,14 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
-    #print(num_methods[method])
+
+    # categorizing the methods
     eee      = ['AK32','Dormand-Prince','Bogacki–Shampine']
     implicit = ['RADAU5']
     ESDIRK   = ['ESDIRK23']
 
     if (not (method in eee)) & (adap == False):
+      # fixed step size RK methods
       print('Using fixed step size for: {}'.format(method))
 
       X    = np.zeros((x.shape[0],N),dtype=np.float64)
@@ -321,6 +298,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
       return T,X
 
     elif method in eee:
+      # embedded error estimator adaptive step size methods
       print('Using Embedded error estimator for: {}'.format(method))
       p      = order_method[method]
       T      = np.zeros((N))
@@ -373,6 +351,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
 
       return T[:j],X[:,:j],ss[:j]
     elif (not (method in eee)) & (adap == True) & (not (method in ESDIRK)) & (not (method in implicit)):
+      # step doubling adaptive step methods
       print('Using step doubling for: {}'.format(method))
       p      = order_method[method]
       T      = np.zeros((N))
@@ -427,7 +406,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                                                 bs))
       return T[:j],X[:,:j],ss[:j]
     elif ((method in implicit) & (adap==True)):
-      print ('RADAUUU')
+      # RADAU5
       print('Using step doubling for: {}'.format(method))
       p      = order_method[method]
       T      = np.zeros((N))
@@ -450,15 +429,12 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
           ts,x_tmp = rk_step_impl(fun,jac,num_methods,method,ts,x_tmp,0.5*dt,kwargs)
 
           e   = np.abs(xs - x_tmp)
-          #print ('+'*30)
-          #print (e)
           num = absTol + np.abs(x_tmp)*relTol
           r   = np.max(e/num)
           
           AcceptStep = (r <= 1)
           
           if AcceptStep:
-            #print(T[j])
             X[:,j+1] = x_tmp
             T[j+1]   = T[j] + dt
             ss[j+1]  = dt
@@ -486,7 +462,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
       return T[:j],X[:,:j],ss[:j]
     
     elif method in ESDIRK:
-        print('LOS POLLOS HERMANOS')
+        # ESDIRK23
         T      = np.zeros((N))
         X      = np.zeros((x.shape[0],N))
         k      = np.zeros((x.shape[0],n))
@@ -522,25 +498,15 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
         while T[j] < t[1]:
             if(T[j]+dt>t[1]):
                 dt = t[1]-T[j]
-        
-     #for i in range(len(num_methods[method]['c'])):
-	#	k[:,i] = fun(t + num_methods[method]['c'][i]*dt,
-     #   			 x + dt*(np.sum(np.asarray(num_methods[method]['coef{}'.format(i)])*k,axis=1)),
-     #                kwargs)
-	#return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
-    
     
             M = I - dt*gamma*jac(T[j],X[:,j],kwargs)
             LU, P = scipy.linalg.lu_factor(M)
             
             AcceptStep = False
             while not AcceptStep:
-                #print('s')
                 Tstage[1] = T[j]
                 Xstage[:,1] = X[:,j]
                 Fstage[:,1] = Fprev
-                
-                #alpha = alpharef
                 
                 for i in range(2,s+1):
                     Psistage[:,i] = Xstage[:,1] + dt*  np.sum(np.array([a[i-1,z]*Fstage[:,z] for z in range(1,i)]), axis=0)
@@ -569,18 +535,13 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                         rnewt = np.max(np.abs(Rstage[:,i])/(absTol + np.abs(Xstage[:,i])*relTol))
                         
                         alpha = np.max([alpha, rnewt/rprev])
-                        #print(prevXs)
-                        #alpha = np.max([alpha, np.linalg.norm(prevXs[:,0]-prevXs[:,1])/np.linalg.norm(prevXs[:,1]-prevXs[:,2])])
-                        
                         if (alpha >= 1):
                             diverging = True
-                    #print (alpha)
                     dtalpha = alpharef/alpha*dt
                 
                 e = np.abs(dt* np.array([d[z-i]*Fstage[:,z] for z in range(1,s)]))
                 num = absTol + np.abs(Xstage[:,s-1])*relTol
                 r   = np.max(e/num)
-                #print(r)
                 AcceptStep = (r <= 1) & (not diverging)
                 
                 if AcceptStep:
@@ -598,7 +559,6 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                       N = N + ap
                       
                 dt = (epsTol/r)**(1/3)*dt
-                #print(dt)
                 dt = np.min([dt,dtalpha])
         
             if j%(len(X)/100)==0:
@@ -624,7 +584,7 @@ def tf(t,x,mu):
 def true_tf(t):
   return np.exp(-t)
 
-'''
+
 dt = np.linspace(1e-3,1e-1,num=200)
 sol = np.zeros(np.size(dt))
 x0 = np.array([1,1])
@@ -639,13 +599,10 @@ for i in range(len(dt)):
   sol[i] = np.amax(np.abs(x[0]-true_tf(t)))
 
 plt.plot(np.log(dt),np.log(sol),label='LTE RK')
-#plt.plot(np.log(dt),np.log(dt**5),label='O(5)')
-#plt.plot(t,ss)
-#plt.legend(loc='best')
-plt.show()
-'''
 
-'''
+plt.show()
+
+
 abstol = 10**(-6)
 reltol = 10**(-6)
 x0 = np.array([0.5,0.5])
@@ -677,23 +634,12 @@ while r.successful() and r.t < ti[1]:
     x_sci_s[0].append(xn[0])
     x_sci_s[1].append(xn[1])
 
-<<<<<<< HEAD
-#plt.plot(T_ESDIRK_A3, SS_ESDIRK_A3)
 
-plt.plot(T_ESDIRK_A3, X_ESDIRK_A3[0,:], T_ESDIRK_A3, X_ESDIRK_A3[1,:])
-
-#plt.plot(X_ESDIRK_A3[0,:], X_ESDIRK_A3[1,:])
-#plt.show()
 plt.plot(t, x_sci_s[0], t ,x_sci_s[1])
 #plt.show()
 #plt.plot(x_sci_s[0],x_sci_s[1])
 plt.show()
 
-=======
-
-
-
->>>>>>> c56350cbe0379228d2c0548e216c43afab315c3d
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           x0,
                           ti,
@@ -723,9 +669,10 @@ T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
                           mu,
                           method='Bogacki–Shampine')
 
-'''
 
 
+
+#------------------------------ PLOTTING MADNESS BEGIN
 
 dt = 10**(-2)
 lamda = -1
@@ -946,11 +893,9 @@ fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 ax[0].plot(T_ESDIRK, X_ESDIRK[0,:], label='X_1')
 ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[0].set_xticks([])
-
 ax[1].plot(T_ESDIRK, X_ESDIRK[1,:], 'orange', label='X_2')
 ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[1].set_xticks([])
-
 ax[2].plot(T_ESDIRK, SS_ESDIRK, 'red', label='StepSize')
 ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 
@@ -963,11 +908,9 @@ fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 ax[0].plot(T_ESDIRK2, X_ESDIRK2[0,:], label='X_1')
 ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[0].set_xticks([])
-
 ax[1].plot(T_ESDIRK2, X_ESDIRK2[1,:], 'orange', label='X_2')
 ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[1].set_xticks([])
-
 ax[2].plot(T_ESDIRK2, SS_ESDIRK2, 'red', label='StepSize')
 ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 
@@ -981,11 +924,9 @@ fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 ax[0].plot(T_RADAU, X_RADAU[0,:], label='X_1')
 ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[0].set_xticks([])
-
 ax[1].plot(T_RADAU, X_RADAU[1,:], 'orange', label='X_2')
 ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[1].set_xticks([])
-
 ax[2].plot(T_RADAU, SS_RADAU, 'red', label='StepSize')
 ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 
@@ -994,17 +935,14 @@ fig.savefig('RADAU1.eps', format='eps', dpi=500, bbox_inches='tight')
 
 mu = 10
 
-
 fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 
 ax[0].plot(T_RADAU2, X_RADAU2[0,:], label='X_1')
 ax[0].set_title(r'X1 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[0].set_xticks([])
-
 ax[1].plot(T_RADAU2, X_RADAU2[1,:], 'orange', label='X_2')
 ax[1].set_title(r'X2 variable of the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 ax[1].set_xticks([])
-
 ax[2].plot(T_RADAU2, SS_RADAU2, 'red', label='StepSize')
 ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, reltol = {}]'.format(mu,abstol,reltol))
 
