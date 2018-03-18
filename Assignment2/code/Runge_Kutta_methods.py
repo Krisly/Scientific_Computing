@@ -194,7 +194,6 @@ def plot_stab_reg(C,A,b):
 
 def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
 
-
     num_methods = {'Classic':
                 pd.DataFrame(np.array([[0,1/2,1/2,1],
                                       [1/6,1/3,1/3,1/6],
@@ -249,7 +248,23 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                  [(296+169*np.sqrt(6))/1800, (88+7*np.sqrt(6))/360, (-2-3*np.sqrt(6))/225],
                  [(16-np.sqrt(6))/36, (16+np.sqrt(6))/36, 1/9]]).T,
                 columns=['c', 'x', 'coef0', 'coef1', 'coef2']),
+                'AK32':
+                pd.DataFrame(np.array([[0,1/4,1/2],
+                                      [2/3,-4/3,5/3],
+                                      [-1/2,1,1/2],
+                                      [0,0,0],
+                                      [1/4,0,0],
+                                      [1/10,2/5,0]]).T,
+                columns=['c', 'x','xh','coef0', 'coef1', 'coef2']),
     }
+    order_method = {'Classic':4,
+                    '3/8-rule':4,
+                    'Dormand-Prince':5,
+                    'Bogacki–Shampine': 3,
+                    'ESDIRK23':2,
+                    'RADAU5':5,
+                    'AK32':3,
+                   }
 
     N      = np.int64(round((t[1]-t[0])/dt))
     n      = len(num_methods[method]['c'])
@@ -262,9 +277,9 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
     facmin = 0.1
     facmax = 5
     #print(num_methods[method])
-    eee      = ['Dormand-Prince','Bogacki–Shampine']
+    eee      = ['AK32','Dormand-Prince','Bogacki–Shampine']
     implicit = ['RADAU5']
-    ESDIRK = ['ESDIRK23']
+    ESDIRK   = ['ESDIRK23']
 
     if (not (method in eee)) & (adap == False):
       print('Using fixed step size for: {}'.format(method))
@@ -293,6 +308,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
 
     elif method in eee:
       print('Using Embedded error estimator for: {}'.format(method))
+      p      = order_method[method]
       T      = np.zeros((N))
       X      = np.zeros((x.shape[0],N))
       k      = np.zeros((x.shape[0],n))
@@ -306,12 +322,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
             
         AcceptStep = False
         while not AcceptStep:
-          if method == 'Dormand-Prince':
-            k,xs   = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'xh',kwargs)
-            na,xsh = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'x',kwargs)
-          else:
-            k,xs   = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'x',kwargs)
-            na,xsh = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'xh',kwargs)
+          k,xs   = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'x',kwargs)
+          na,xsh = rk_step(fun,num_methods,method,k,T[j],X[:,j],dt,'xh',kwargs)
 
           e   = np.abs(xs - xsh)
           num = absTol + np.abs(xs)*relTol
@@ -342,13 +354,13 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
               																  round((T[j]/t[1])*100,2),
               																  bs))
 
-          dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
+          dt = np.max([facmin,np.min([(epsTol/np.float64(r))**(1/(p+1)),facmax])])*dt
           
 
       return T[:j],X[:,:j],ss[:j]
     elif (not (method in eee)) & (adap == True) & (not (method in ESDIRK)) & (not (method in implicit)):
       print('Using step doubling for: {}'.format(method))
-      
+      p      = order_method[method]
       T      = np.zeros((N))
       X      = np.zeros((x.shape[0],N))
       ss     = np.zeros((N))
@@ -380,13 +392,13 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
             ss[j+1]  = dt
             j+=1
             if j+1==N:
-              ap = round(N/2)
+              ap = np.int64(round(N/2))
               X  = np.append(X,np.zeros((xs.shape[0],ap)),axis=1)
               T  = np.append(T,np.zeros((ap)))
               ss = np.append(ss,np.zeros((ap)))
               N  = N + ap
 
-          dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
+          dt = np.max([facmin,np.min([((epsTol/np.float64(r)))**(1/(p+1)),
                        facmax])])*dt
     
           if j%(np.int64(round(len(X)/15)))==0:
@@ -403,7 +415,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
     elif ((method in implicit) & (adap==True)):
       print ('RADAUUU')
       print('Using step doubling for: {}'.format(method))
-      
+      p      = order_method[method]
       T      = np.zeros((N))
       X      = np.zeros((x.shape[0],N))
       ss     = np.zeros((N))
@@ -444,7 +456,7 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
               ss = np.append(ss,np.zeros((ap)))
               N  = N + ap
 
-          dt = np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),
+          dt = np.max([facmin,np.min([(epsTol/np.float64(r))**(1/(p+1)),
                        facmax])])*dt
     
           if j%(len(X)/100)==0:
@@ -599,7 +611,7 @@ def true_tf(t):
   return np.exp(-t)
 
 '''
-dt = np.linspace(1e-2,1e-1,num=200)
+dt = np.linspace(1e-3,1e-1,num=200)
 sol = np.zeros(np.size(dt))
 x0 = np.array([1,1])
 for i in range(len(dt)):
@@ -608,17 +620,18 @@ for i in range(len(dt)):
                     [0,1],
                     dt[i],
                     -1,
-                    method='Dormand-Prince')
+                    method='Classic',adap=True)
 
-  sol[i] = np.amax(np.abs(x[1]-true_tf(t)))
+  sol[i] = np.amax(np.abs(x[0]-true_tf(t)))
 
-#plt.plot(np.log(dt),np.log(sol),label='LTE RK')
+plt.plot(np.log(dt),np.log(sol),label='LTE RK')
 #plt.plot(np.log(dt),np.log(dt**5),label='O(5)')
-plt.plot(t,ss)
+#plt.plot(t,ss)
 #plt.legend(loc='best')
 plt.show()
 '''
 
+'''
 abstol = 10**(-6)
 reltol = 10**(-6)
 x0 = np.array([0.5,0.5])
@@ -650,9 +663,23 @@ while r.successful() and r.t < ti[1]:
     x_sci_s[0].append(xn[0])
     x_sci_s[1].append(xn[1])
 
+<<<<<<< HEAD
+#plt.plot(T_ESDIRK_A3, SS_ESDIRK_A3)
+
+plt.plot(T_ESDIRK_A3, X_ESDIRK_A3[0,:], T_ESDIRK_A3, X_ESDIRK_A3[1,:])
+
+#plt.plot(X_ESDIRK_A3[0,:], X_ESDIRK_A3[1,:])
+#plt.show()
+plt.plot(t, x_sci_s[0], t ,x_sci_s[1])
+#plt.show()
+#plt.plot(x_sci_s[0],x_sci_s[1])
+plt.show()
+
+=======
 
 
 
+>>>>>>> c56350cbe0379228d2c0548e216c43afab315c3d
 T_C_3,X_C_3 = Runge_Kutta(VanDerPol,
                           x0,
                           ti,
@@ -682,12 +709,22 @@ T_BS_3,X_BS_3,SS_BS_3 = Runge_Kutta(VanDerPol,
                           mu,
                           method='Bogacki–Shampine')
 
+'''
+
+abstol = 10**(-4)
+reltol = 10**(-4)
+x0 = np.array([0.5,0.5])
+
+dt = 10**(-2)
+mu = 10
+ti  = [0,5*mu]
+
 
 r = ode(VanDerPol,
         JacVanDerPol).set_integrator('vode',
                                       method='bdf',
                                       with_jacobian=True,
-                                      order=15)
+                                      order=45)
 r.set_initial_value(x0, ti[0]).set_f_params(mu).set_jac_params(mu)
 x_sci_s = [[],[]]
 t       = np.arange(0,ti[1]+0.01,0.01)
@@ -697,43 +734,51 @@ while r.successful() and r.t < ti[1]:
     x_sci_s[0].append(xn[0])
     x_sci_s[1].append(xn[1])
 
+T_C_A3,X_C_A3,SS_C_A3 = Runge_Kutta(VanDerPol,
+                          x0,
+                          ti,
+                          dt,
+                          mu,
+                          method='Classic',
+                          adap=True)
+
 fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
 # Plotting the results
-ax[0].plot(t[:len(x_sci_s[0][:])],x_sci_s[0][:],label='Scipy')
-ax[0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
-ax[0].plot(T_C_A3,X_C_A3[0,:],label='RK4 AS')
-ax[0].plot(T_DP_3,X_DP_3[0,:],'-o',label='DP54 AS')
-ax[0].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
-ax[0].set_title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
+ax[0].plot(t[:len(x_sci_s[0][:])],x_sci_s[0][:],'-o',label='Scipy')
+#ax[0].plot(T_C_3,X_C_3[0,:],label='RK4 FS')
+ax[0].plot(T_C_A3,X_C_A3[0,:],'-o',label='RK4 AS')
+#ax[0].plot(T_DP_3,X_DP_3[0,:],'-o',label='DP54 AS')
+#ax[0].plot(T_BS_3,X_BS_3[0,:],label='BS AS')
+ax[0].set_title(r'Phase one of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
 ax[0].set_xticks([])
-ax[0].set_ylim(-5,5)
 ax[0].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
-ax[1].plot(t[:len(x_sci_s[1][:])],x_sci_s[1][:],label='Scipy')
-ax[1].plot(T_C_3,X_C_3[1,:],label='RK4 FS')
-ax[1].plot(T_C_A3,X_C_A3[1,:],label='RK4 AS')
-ax[1].plot(T_DP_3,X_DP_3[1,:],'-o',label='DP54 AS')
-ax[1].plot(T_BS_3,X_BS_3[1,:],label='BS AS')
-ax[1].set_title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
+ax[1].plot(t[:len(x_sci_s[1][:])],x_sci_s[1][:],'-o',label='Scipy')
+#ax[1].plot(T_C_3,X_C_3[1,:],label='RK4 FS')
+ax[1].plot(T_C_A3,X_C_A3[1,:],'-o',label='RK4 AS')
+#ax[1].plot(T_DP_3,X_DP_3[1,:],'-o',label='DP54 AS')
+#ax[1].plot(T_BS_3,X_BS_3[1,:],label='BS AS')
+ax[1].set_title(r'Phase two of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
 ax[1].set_xticks([])
-ax[1].set_ylim(-5,5)
 ax[1].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
 
-ax[2].plot(T_C_A3[1:],np.log(SS_C_A3[1:]),label='SS RK4')
-ax[2].plot(T_DP_3[1:],np.log(SS_DP_3[1:]),label='SS DP54')
-ax[2].plot(T_BS_3[1:],np.log(SS_BS_3[1:]),label='SS BS')
+ax[2].plot(T_C_A3[1:],np.log(SS_C_A3[1:]),'-o',label='SS RK4')
+#ax[2].plot(T_DP_3[1:],np.log(SS_DP_3[1:]),label='SS DP54')
+#ax[2].plot(T_BS_3[1:],np.log(SS_BS_3[1:]),label='SS BS')
 ax[2].set_title('Semi log-plot of step sizes with tolerance {}'.format(10**(-4)))
 ax[2].legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
+plt.savefig('./figs/sol_VDP_CRKA_mu10.pdf')
 plt.show()
 
 plt.figure()
-plt.plot(x_sci_s[0][:],x_sci_s[1][:],label='Scipy')
-plt.plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
-plt.plot(X_C_A3[0,:],X_C_A3[1,:],label='RK4 AS')
-plt.plot(X_DP_3[0,:],X_DP_3[1,:],'-o',label='DP54 AS')
-plt.plot(X_BS_3[0,:],X_BS_3[1,:],label='BS AS')
+plt.plot(x_sci_s[0][:],x_sci_s[1][:],'-o',label='Scipy')
+#plt.plot(X_C_3[0,:],X_C_3[1,:],label='RK4 FS')
+plt.plot(X_C_A3[0,:],X_C_A3[1,:],'-o',label='RK4 AS')
+#plt.plot(X_DP_3[0,:],X_DP_3[1,:],'-o',label='DP54 AS')
+#plt.plot(X_BS_3[0,:],X_BS_3[1,:],label='BS AS')
 plt.title(r'Phase state of the Van Der Pol. [SS: {}, $\mu = {}$, abstol = {}, reltol = {}]'.format(dt,mu,abstol,reltol))
 plt.legend(bbox_to_anchor=(-0.15, 1), loc=2, borderaxespad=0.)
+plt.savefig('./figs/sol_VDP_CRKA_PS_mu10.pdf')
 plt.show()
 
 
@@ -805,6 +850,9 @@ ax[2].set_title(r'Step size for the Van Der Pol. [$\mu = {}$, abstol = {}, relto
 fig.savefig('ESDIRK1.eps', format='eps', dpi=500, bbox_inches='tight')
 
 
+<<<<<<< HEAD
+#cProfile.run("Runge_Kutta(VanDerPol,np.array([0.5,0.5]),[0,10],10**(-4),3,method='Classic',adap=True)",sort='cumtime')
+=======
 mu = 10
 
 fig, ax = plt.subplots(3, 1, figsize=(15,10), sharex=False)
@@ -874,3 +922,4 @@ fig.savefig('RADAU2.eps', format='eps', dpi=500, bbox_inches='tight')
 
 #ERK4 : fcalls 9840
 #steps: 413
+>>>>>>> c56350cbe0379228d2c0548e216c43afab315c3d
