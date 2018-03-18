@@ -25,23 +25,16 @@ def NewtonsMethodODE(FunJac, tk, xk, dt, xinit, tol, maxit, varargin):
     k = 0
     t = tk + dt
     x = xinit
-    print("----1")
-    print(x)
-    print(t)
+
     [f,J] = FunJac(t,x,varargin)
-    print(f)
-    print(dt)
+
     R = x - f*dt - xk
     I = np.eye(np.size(xk))
     while (k < maxit) and (np.linalg.norm(R,np.inf) > tol):
         k += 1
         dRdx = I - J*dt
         dx = np.linalg.solve(dRdx,R)
-        print("-"*4+"NMODE")
-        print(x)
-        print(dx)
-        print(dRdx)
-        print(R)
+
         x = x - dx
         [f,J] = FunJac(t,x,varargin)
         R = x - f*dt - xk
@@ -50,7 +43,7 @@ def NewtonsMethodODE(FunJac, tk, xk, dt, xinit, tol, maxit, varargin):
 
 def ExplicitEulerFixedStepSize(fun,ta,tb,N,xa,kwargs):
     dt = (tb-ta)/N
-    nx = np.size(xa,0)
+    nx = np.size(xa)
     X  = np.zeros([N+1,nx])
     T  = np.zeros([N+1,1])
     T[0,:] = np.transpose(ta)
