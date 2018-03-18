@@ -77,41 +77,85 @@ def rk_step(fun,num_methods,method,k,t,x,dt,xm,kwargs):
                      kwargs)
 	return k, x + dt*np.sum(np.asarray(num_methods[method][xm])*k,axis=1)
 
-def NewtonSolver(fun,jac,t,dt,xinit,tol,maxit,kwargs):
+def NewtonSolver(fun,jac,psi,a,t,dt,xinit,tol,maxit,kwargs):
     I = np.eye(np.size(xinit))
     x = xinit
     f = fun(x)
     J = jac(t,x,kwargs)
-    R = x - f*dt
+    R = x - a*f*dt - psi
+    it = 1
+    dRdx = I - J*dt
+    while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
+        mdx = np.linalg.solve(dRdx,R)
+        x = x - mdx
+        f = fun(x)
+        J = jac(t,x,kwargs)
+        R = x - f*dt -psi
+        it = it+1
+    return [x,f,J]
+
+def temp(xinit,ffun,varargin,tol,maxit,psi):
+    I = np.eye(np.size(xinit))
+    x = xinit
+    [f,J] = ffun(t,x,varargin)
+    R = x - f[0]*dt - psi
     it = 1
     while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
         dRdx = I - J*dt
         mdx = np.linalg.solve(dRdx,R)
         x = x - mdx
-        f = fun(x)
-        J = jac(t,x,kwargs)
-        R = x - f*dt
+        [f,J] = ffun(t,x,varargin)
+        R = x - f[0]*dt - psi
         it = it+1
-    return [x,f,J]
 
-def rk_step_impl(fun,jac,num_methods,method,t,x,dt,kwargs):
+def rk_step_impl(fun,jac,num_methods,method,tn,xn,dt,kwargs):
     c = num_methods[method]['c']
     b = np.asarray(num_methods[method]['x'])
+    a = np.zeros([len(c), len(b)])
+
     tol = 1e-5
     maxit = 50
     
-    X = np.zeros([np.size(x), len(c)])
-    F = np.zeros([np.size(x), len(c)])
+    X = np.zeros([np.size(xn), len(c)])
+    Xn = np.zeros([np.size(xn), len(c)])
+    F = np.zeros([np.size(xn), len(c)])
     T = np.zeros(len(c))
     
+    T = tn + c*dt
+    J = jac(T,xn,kwargs)
+    
     for i in range(len(c)):
-        a = np.asarray(num_methods[method]['coef{}'.format(i)])
-        T[i] = t + c[i]*dt
-        fimpl = lambda Xi: dt*np.sum(a[i]*fun(T[i],Xi,kwargs))
-        xinit = x*c[i]*dt
-        X[:,i],f,J = NewtonSolver(fimpl,jac,t,dt,xinit,tol,maxit,kwargs)
-        F[:,i] = f
-    return T[len(c)-1], x + dt*np.sum(b*F)
+        X[:,i] = xn
+        Xn[:,i] = xn
+        F[:,i] = fun(T[i], X[:,i], kwargs)
+        a[:,i] = np.asarray(num_methods[method]['coef{}'.format(i)])
+
+    R = np.zeros([len(xn), len(c)])
+    Fs = np.array([F[:,q] for q in range(len(c))])
+
+    for i in range(len(c)):
+        R[:,i] = X[:,i] - Xn[:,i] - dt*np.sum(a[:,i]*Fs.T,axis = 1).T
+    
+    huge = np.concatenate([np.concatenate([a[q,i]*J for q in range(len(c))],axis=1) for i in range(len(c))])
+    dRdx = np.eye(len(c)*len(xn)) - dt*huge # np.zeros([len(c)*len(xn), len(c)*len(xn)])
+
+    it = 1
+    R = (np.concatenate(R.T))
+
+    while ( (np.linalg.norm(R,np.inf) > tol) and (it <= maxit) ):
+        mdx = np.linalg.solve(dRdx,R.T)
+        mdx = (np.reshape(mdx, [len(c), len(xn)]).T)
+        X = X - mdx
+        for i in range(len(c)):
+            F[:,i] = fun(T[i], X[:,i], kwargs)
+        Fs = np.array([F[:,q] for q in range(len(c))])
+        R = np.zeros([len(xn), len(c)])
+        for i in range(len(c)):
+            R[:,i] = X[:,i] - Xn[:,i] - dt*np.sum(a[:,i]*Fs.T,axis = 1).T
+        R = (np.concatenate(R.T))
+        huge = np.concatenate([np.concatenate([a[q,i]*J for q in range(len(c))],axis=1) for i in range(len(c))])
+        dRdx = np.eye(len(c)*len(xn)) - dt*huge # np.zeros([len(c)*len(xn), len(c)*len(xn)])
+    return T[len(c)-1], X[:,len(c)-1]
 
 def fill_array(C,A,b,a):
 		nrow = A.shape[0]
@@ -210,8 +254,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
     N      = round((t[1]-t[0])/dt)
     n      = len(num_methods[method]['c'])
     k      = np.zeros((x.shape[0],n))
-    absTol = 10**(-4)
-    relTol = 10**(-4)
+    absTol = 10**(-6)
+    relTol = 10**(-6)
     epsTol = 0.8
     facmin = 0.1
     facmax = 5
@@ -378,13 +422,15 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
           ts,x_tmp = rk_step_impl(fun,jac,num_methods,method,ts,x_tmp,0.5*dt,kwargs)
 
           e   = np.abs(xs - x_tmp)
+          #print ('+'*30)
+          #print (e)
           num = absTol + np.abs(x_tmp)*relTol
           r   = np.max(e/num)
           
-          AcceptStep = True #(r <= 1)
+          AcceptStep = (r <= 1)
           
           if AcceptStep:
-            print(T[j])
+            #print(T[j])
             X[:,j+1] = x_tmp
             T[j+1]   = T[j] + dt
             ss[j+1]  = dt
@@ -467,16 +513,6 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                 Fstage[:,1] = Fprev
                 
                 for i in range(2,s+1):
-                    #a = np.asarray(num_methods[method]['coef{}'.format(i-1)])
-                   # print (Fstage)
-                    #print ("-"*4)
-                    #print (i)
-                    #print (a)
-                   # print ([b[z-1]*Fstage[:,z] for z in range(1,i-1)])
-                   # print (b[1-1]*Fstage[:,1])
-                    #print (np.array([a[z]*Fstage[:,z] for z in range(1,i)]))
-                    #print ("-"*3)
-                    #print (np.array([a[i-1,z]*Fstage[:,z] for z in range(1,i)]))
                     Psistage[:,i] = Xstage[:,1] + dt*  np.sum(np.array([a[i-1,z]*Fstage[:,z] for z in range(1,i)]), axis=0)
                     Tstage[i] = T[j] + c[i-1]*dt
                     Xstage[:,i] = X[:,j] + c[i-1]*dt*Fstage[:,1]
@@ -486,29 +522,11 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                     rnewt = np.max(np.abs(Rstage[:,i])/(absTol + np.abs(Xstage[:,i])*relTol))
                     diverging = False
                     
-                    while (rnewt > (1) & (not diverging)): #np.linalg.norm(Rstage[:,i]) 0.08
-#                        print (M)
-#                        print (P*M)
-#                        print ('-'*10)
-#                        print (L)
-#                        print (U)
-#                        print (L*U)
-#                        print ('-'*10)
-#                        print (P*Rstage[:,i])
-#                        print (Rstage[np.int32(P),i])
-                        #print (Fstage[:,i])
-                        #print (Psistage[:,i])
-                        #print (Rstage[:,i])
-#                        print ('+'*10)
-                        #qwe = np.linalg.solve(L, Rstage[np.int32(P),i])
-
-                        #Dx = np.linalg.solve(U, qwe)
+                    while (rnewt > (1) & (not diverging)):
                         Dx = scipy.linalg.lu_solve((LU, P),Rstage[:,i])
 
-                        #print (Dx)
                         rprev = rnewt
-                        
-                        
+
                         Xstage[:,i] = Xstage[:,i] - Dx
                         Fstage[:,i] = fun(Tstage[i],Xstage[:,i],kwargs)
                         Rstage[:,i] = Xstage[:,i] - dt*gamma*Fstage[:,i] - Psistage[:,i]
@@ -522,11 +540,9 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                 e = np.abs(dt* np.array([d[z-i]*Fstage[:,z] for z in range(1,s)]))
                 num = absTol + np.abs(Xstage[:,s-1])*relTol
                 r   = np.max(e/num)
-                #print (r)
                 AcceptStep = (r <= 1) & (not diverging)
                 
                 if AcceptStep:
-                    #print(T[j], X[:,j])
                     X[:,j+1] = Xstage[:,s]
                     T[j+1]   = T[j] + dt 
                     ss[j+1]  = dt
@@ -540,9 +556,8 @@ def Runge_Kutta(fun,x,t,dt,kwargs,method='Classic',adap=False,jac=None):
                       ss = np.append(ss,np.zeros((ap)))
                       N = N + ap
                       
-                dt = (epsTol/r)**(1/3)*dt#np.max([facmin,np.min([np.sqrt(epsTol/np.float64(r)),facmax])])*dt
+                dt = (epsTol/r)**(1/3)*dt
                 dt = np.min([dt,dtalpha])
-                #print (dt)
         
             if j%(len(X)/15)==0:
                 bs = X.nbytes/1000000
@@ -565,8 +580,8 @@ def tf(t,x):
 def true_tf(t):
   return np.exp(t)
 
-abstol = 10**(-3)
-reltol = 10**(-3)
+abstol = 10**(-6)
+reltol = 10**(-6)
 x0 = np.array([0.5,0.5])
 
 dt = 10**(-2)

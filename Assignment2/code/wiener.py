@@ -132,6 +132,11 @@ def GeometricBrownianDrift(t,x,p):
     f = lamda*x
     return f
 
+def JacGeometricBrownianDrift(t,x,p):
+    lamda = p[0]
+    J = lamda
+    return J
+
 def GeometricBrownianDiffusion(t,x,p):
     sigma = p[1]
     g = sigma*x
@@ -180,7 +185,7 @@ plt.show()
 x0 = 1
 lamda = 0.1
 sigma = 0.15
-Ns = 10000
+Ns = 1000
 [W,Tw,dW]=ScalarStdWienerProcess(T,N,Ns,seed)
 
 P = [lamda, sigma]
@@ -199,7 +204,7 @@ mean = np.mean(X.T,axis=1)
 meanW = np.mean(W,axis=0)
 
 plt.figure()
-plt.plot(Tw,x0*np.exp( (lamda-0**2/2)*Tw + 0*W[2,:]),'g')
+plt.plot(Tw,x0*np.exp( (lamda-0**2/2)*Tw + 0*sigma*W[2,:]),'g')
 plt.plot(Tw,mean, '-')
 plt.xlabel('t')
 plt.ylabel('x(t)')
@@ -227,7 +232,70 @@ plt.ylabel('x(t)')
 plt.legend(['analytical','Euler–Maruyama'])
 plt.show()
 
+x0 = 1
+lamda = 0.1
+sigma = 0.15
+Ns = 1000
+
+start = 1000
+stop = 5000
+step = 1000
+
+errs = np.zeros([len(range(start,stop,step))])
+ind = 0
+for N in range(start,stop,step):
+    [W,Tw,dW]=ScalarStdWienerProcess(T,N,Ns,seed)
+    Xanal = np.zeros([np.size(W,0), np.size(W,1)])
+    X = np.zeros([np.size(W,0), np.size(W,1)])
+    errs[ind] = 0
+    for i in range(0,Ns):
+        X[i,:] = SDEeulerExplicitExplicit(GeometricBrownianDrift,GeometricBrownianDiffusion,Tw,x0,W[i,:,None],P)
+        Xanal[i,:] = x0*np.exp( (lamda-sigma**2/2)*Tw + sigma*W[i,:])
+        errs[ind] += np.max(X[i,:]-Xanal[i,:])
+    errs[ind] = np.max(errs[ind]/Ns)
+    ind += 1
+    print (N)
 #
+dt = T/np.arange(start,stop,step)
+plt.loglog(dt,np.abs(errs), dt, dt**0.5)
+plt.legend(['SDEuler-ExplExpl','O(dt^0.5)'])
+plt.xlabel('dt')
+plt.ylabel('E')
+plt.show()
+
+
+start = 1000
+stop = 3000
+step = 1000
+
+
+errs = np.zeros([len(range(start,stop,step))])
+ind = 0
+for N in range(start,stop,step):
+    [W,Tw,dW]=ScalarStdWienerProcess(T,N,Ns,seed)
+    Xanal = np.zeros([np.size(W,0), np.size(W,1)])
+    X = np.zeros([np.size(W,0), np.size(W,1)])
+    errs[ind] = 0
+    for i in range(0,Ns):
+        X[i,:] = SDEeulerImplicitExplicit(lambda t,x,p: (GeometricBrownianDrift(t,x,p), JacGeometricBrownianDrift(t,x,p)) ,GeometricBrownianDiffusion,Tw,x0,W[i,:,None],P)
+        Xanal[i,:] = x0*np.exp( (lamda-sigma**2/2)*Tw + sigma*W[i,:])
+        errs[ind] += np.max(X[i,:]-Xanal[i,:])
+    errs[ind] = np.max(errs[ind]/Ns)
+    ind += 1
+    print (N)
+#
+dt = T/np.arange(start,stop,step)
+plt.loglog(dt,np.abs(errs), dt, dt**0.5)
+plt.legend(['SDEuler-ImplExpl','O(dt^0.5)'])
+plt.xlabel('dt')
+plt.ylabel('E')
+plt.show()
+
+
+
+
+
+
 #
 #[W,Tw,dW]=ScalarStdWienerProcess(T,N,Ns,seed)
 #
