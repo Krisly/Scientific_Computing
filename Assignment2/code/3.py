@@ -9,6 +9,8 @@ Created on Sun Mar 18 20:13:39 2018
 import numpy as np
 import helperFunctions as hF
 import matplotlib.pyplot as plt
+from Runge_Kutta_methods import VanDerPol
+from Runge_Kutta_methods import VanderPolfunjac
 
 def testEqn(t,x,p):
     # function for the test problem
@@ -121,3 +123,35 @@ ax[1].set_xlabel('t')
 ax[1].set_ylabel('x')
 
 fig.savefig('3-2-2.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+
+dt = 2*10**(-2)
+mu = 30
+ti  = [0,10]
+x0 = np.array([0.5,0.5])
+N = int(np.floor((ti[1]-ti[0])/dt))
+
+Ti,Xi = hF.ImplicitEulerFixedStepSize(VanderPolfunjac,ti[0],ti[1],N,x0,mu)
+Te,Xe = hF.ExplicitEulerFixedStepSize(VanDerPol,ti[0],ti[1],N,x0,mu)
+
+fig, ax = plt.subplots(1, 2, figsize=(10,5), sharex=False)
+
+fig, ax = plt.subplots(1, 2, figsize=(10,5), sharex=False)
+ax[0].plot(Te,Xe.T[0,:], label='X1')
+ax[0].plot(Te,Xe.T[1,:], label='X2')
+ax[0].legend() 
+ax[0].set_title('Explicit Euler')
+ax[0].set_xlabel('t')
+ax[0].set_ylabel('x')
+
+# ------------------------- 1-3
+ax[1].plot(Ti.T,Xi[0,:], label='X1')
+ax[1].plot(Ti.T,Xi[1,:], label='X2')
+
+ax[1].legend()
+ax[1].set_title('Implicit Euler')
+ax[1].set_xlabel('t')
+ax[1].set_ylabel('x')
+
+fig.savefig('1-2-7.eps', format='eps', dpi=500, bbox_inches='tight')

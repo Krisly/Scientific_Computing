@@ -585,6 +585,97 @@ def true_tf(t):
   return np.exp(-t)
 
 
+
+
+dt = 10**(-2)
+lamda = -1
+x0  = np.array([1])
+ti = [0,20]
+
+
+r = ode(testEqn,
+        JacTestEqn).set_integrator('vode',
+                                      method='bdf',
+                                      with_jacobian=True,
+                                      order=15)
+
+r.set_initial_value(x0, ti[0]).set_f_params([lamda]).set_jac_params([lamda])
+x_sci_s = []
+t       = np.arange(0,ti[1],0.01)
+# Solving using the scipy solver
+while r.successful() and r.t < ti[1]:
+    xn = r.integrate(r.t+0.01)
+    x_sci_s.append(xn[0])
+
+
+T_AK32,X_AK32 = Runge_Kutta(testEqn,
+                                      x0,
+                                      ti,
+                                      dt,
+                                      [lamda],
+                                      method='Classic',
+                                      adap=False,
+                                      jac=JacTestEqn)
+
+fig, ax = plt.subplots(1, 1, figsize=(15,10), sharex=False)
+
+ax.plot(T_AK32,X_AK32[0,:],label='ERK4')
+ax.plot(t,x_sci_s,'--',label='Scipy 15')
+
+ax.set_title('Solution to the test problem - Classic RK4 - fixed step size')
+ax.set_xlabel('t')
+ax.set_ylabel('x')
+ax.legend()
+fig.savefig('2-1-3.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+T_AK32,X_AK32,SS = Runge_Kutta(testEqn,
+                                      x0,
+                                      ti,
+                                      dt,
+                                      [lamda],
+                                      method='Classic',
+                                      adap=True)
+
+fig, ax = plt.subplots(1, 1, figsize=(15,10), sharex=False)
+
+ax.plot(T_AK32,X_AK32[0,:],label='ERK4')
+ax.plot(t,x_sci_s,'--',label='Scipy 15')
+
+ax.set_title('Solution to the test problem - Classic RK4 - adaptive step size')
+ax.set_xlabel('t')
+ax.set_ylabel('x')
+ax.legend()
+fig.savefig('2-2-3.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+
+
+T_AK32,X_AK32,SS = Runge_Kutta(testEqn,
+                                      x0,
+                                      ti,
+                                      dt,
+                                      [lamda],
+                                      method='Dormand-Prince',
+                                      adap=True,
+                                      jac=JacTestEqn)
+
+fig, ax = plt.subplots(1, 1, figsize=(15,10), sharex=False)
+
+ax.plot(T_AK32,X_AK32[0,:],label='DOPRI')
+ax.plot(t,x_sci_s,'--',label='Scipy 15')
+
+ax.set_title('Solution to the test problem - Dormand-Prince - adaptive step size')
+ax.set_xlabel('t')
+ax.set_ylabel('x')
+ax.legend()
+fig.savefig('2-3-3.eps', format='eps', dpi=500, bbox_inches='tight')
+
+
+
+
+
+
 dt = np.linspace(1e-3,1e-1,num=200)
 sol = np.zeros(np.size(dt))
 x0 = np.array([1,1])
