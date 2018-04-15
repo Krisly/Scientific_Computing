@@ -1,6 +1,9 @@
 import numpy as np
 import scipy as sp
 import scipy.sparse
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
+from scipy.sparse.linalg import spsolve
 
 def poisson5(m):
 	e = np.repeat(1,m)
@@ -22,8 +25,39 @@ def rhs_fun(fun,x,y):
 	return rhs
 
 def func(x,y):
-	return np.sin(4*np.pi*(x+y))+np.cos(4*np.pi*x*y)
+	return np.sin(4*np.pi*(x+y))+np.cos(4*np.pi*x*y)*(x**y)
 
-xv, yv = np.meshgrid(np.arange(0,1,0.4), np.arange(0,1,0.4), sparse=False, indexing='ij')
-print(rhs_fun(func,xv,yv))
+def func2(x,y):
+	return np.exp(x) - np.exp(y)
 
+m = 100
+Nx = Ny = m
+x = np.linspace(-5, 5, Nx)
+y = np.linspace(-5, 5, Ny)
+X, Y = np.meshgrid(x, y)
+u = spsolve(poisson5(m), func2(X,Y).flatten().T)
+
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot_wireframe(X, Y, u.reshape(m,m), rstride=10, cstride=10)
+
+plt.show()
+
+plt.figure()
+plt.clf()
+plt.plot_surface(X,Y,u.reshape(m,m))
+plt.title('X grid $(X_{i,j})_{i,j}$')
+plt.xlabel(r'$j$')
+plt.ylabel(r'$i$')
+plt.colorbar()
+plt.show()
+#
+#plt.figure()
+#plt.clf()
+#plt.imshow(poisson5(2).todense())
+#plt.title('Y grid $(Y_{i,j})_{i,j}$')
+#plt.xlabel(r'$j$')
+#plt.ylabel(r'$i$')
+#plt.colorbar()
+#plt.show()
