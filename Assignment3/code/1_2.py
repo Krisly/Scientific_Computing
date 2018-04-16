@@ -54,10 +54,10 @@ def single_shoot(fun, bcond, t, param):
         
         if (dsigma == None):
             sigma = 3
-            dsigma = sigma - 4
+            dsigma = sigma - sigma_prev
             x0 = [a, sigma]
             sol = []
-        
+            
             solver.set_initial_value(x0, t1).set_f_params(param)
             solver.integrate(t2)    
             sol = np.array(sol)
@@ -65,19 +65,20 @@ def single_shoot(fun, bcond, t, param):
             resid = sol[-1,1] - b
         else:
 
-            dsigma = sigma - sigma_prev
+            
             x0 = [a, sigma]
             sol = []
-        
+            
             solver.set_initial_value(x0, t1).set_f_params(param)
             solver.integrate(t2)    
             sol = np.array(sol)
             
             resid = sol[-1,1] - b
-
+            
             #sigma = sigma + resid/(resid-resid_prev)
             #print(resid/(resid-resid_prev))
-        sigma = sigma + resid/(resid-resid_prev)
+        sigma = sigma - resid/((resid-resid_prev)/(dsigma))
+        dsigma = sigma - sigma_prev
         if (abs(resid)<ntol or it > 100):
             conv = True
         it += 1
