@@ -12,6 +12,8 @@ from matplotlib import pyplot as plt
 from Runge_Kutta_methods import Runge_Kutta
 from scipy.integrate import ode
 
+# lec 14 - 24
+
 def fun(t,x,p):
     e = p[2]
     dxdt = np.array([x[1], -x[0]*(x[1]-1)/e])
@@ -100,33 +102,20 @@ w0 = 0.5*(t1-t2+b-a)
 x1_approx = t - xmean + w0*np.tanh(w0*(t-xmean)/(2*e))
 x2_approx = 1 + (w0**2 * (1/np.cosh((w0 * (t - xmean))/(2 * e))**2))/(2 * e)
 
-plt.plot(t,x1_approx)
-plt.plot(t,x2_approx)
-plt.title('Provided approx')
-plt.show()
+#plt.plot(t,x1_approx)
+#plt.plot(t,x2_approx)
+#plt.title('Provided approx')
+#plt.show()
 
 param = [a,b,e]
 
 results = integrate.solve_bvp(lambda t,x: fun(t,x,param), lambda ua,ub: bc(ua,ub,param), t, [x1_approx, x2_approx])
 
-plt.plot(results.x, results.y[0])
-plt.plot(results.x, results.y[1])
-plt.title('scipy solve_bvp')
-plt.show()
-
-
-
-#T_RK,X_RK,SS = Runge_Kutta(fun,
-#                              x0,
-#                              np.array([t1, t2]),
-#                              0.0001,
-#                              param,
-#                              method='Dormand-Prince')
-#
-#plt.plot(T_RK,X_RK[0,:])
-#plt.plot(T_RK,X_RK[1,:])
-#plt.title('DOPRI IVP, x=' + str(x0[0]) + ", x'=" + str(x0[1]))
+#plt.plot(results.x, results.y[0])
+#plt.plot(results.x, results.y[1])
+#plt.title('scipy solve_bvp')
 #plt.show()
+
 
 sigma = single_shoot(fun, [a, b], [t1, t2], param)
 
@@ -142,11 +131,80 @@ solver.set_initial_value(x0, t1).set_f_params(param)
 solver.integrate(t2)
 
 sol = np.array(sol)
+#plt.plot(sol[:,0], sol[:,1])
+#plt.plot(sol[:,0], sol[:,2])
+#plt.title('DOPRI IVP, x=' + str(x0[0]) + ", x'=" + str(x0[1]))
+#plt.show()
+
+
+
+def Derivatives(t,x,p):
+    e = p[2]
+    dfdx = np.array([0, 1, -(x[1]-1)/e, -x[0]/e])
+    dfdp = np.array([0, 0])
+    return dfdx, dfdp
+
+def modelAndSens(t,z,p):
+    x = z[:-2]
+    sp = np.array(z[-2:])
+    #sp = np.reshape(sp,[2,2])
+    xdot = fun(t,x,p)
+    dfdx, dfdp = Derivatives(t,x,p)
+    dfdx = np.reshape(dfdx,[2,2])
+    #print(np.asmatrix(dfdx) * np.asmatrix(sp).T)
+    Spdot = (np.asmatrix(dfdx)*np.asmatrix(sp).T).T + dfdp
+    zdot = np.concatenate([xdot, np.asarray(Spdot.flatten()).flatten()])
+    #print(zdot)
+    #print(type(zdot))
+    return zdot
+
+def qwe(t,x,p):
+    return 5
+
+x0 = np.array([a, sigma, 0, 1])
+
+
+solver = ode(modelAndSens).set_integrator('dopri5')
+
+sol = []
+def solout(t, y):
+    sol.append([t, *y])
+solver.set_solout(solout)
+print (x0)
+print (t1)
+print (param)
+solver.set_initial_value(x0, t1).set_f_params(param)
+solver.integrate(t2)
+
+sol = np.array(sol)
+
+plt.figure(figsize=(13,5))
+plt.plot(t,x1_approx)
+plt.plot(results.x, results.y[0],"g--")
 plt.plot(sol[:,0], sol[:,1])
-plt.plot(sol[:,0], sol[:,2])
-plt.title('DOPRI IVP, x=' + str(x0[0]) + ", x'=" + str(x0[1]))
+plt.title("x1 (u)")
+plt.legend(["Approximated","scipy solve_bvp","shooting method"])
+plt.xlabel("t")
+plt.ylabel("x1")
 plt.show()
 
+plt.figure(figsize=(13,5))
+plt.plot(t,x2_approx)
+plt.plot(results.x, results.y[1],"g--")
+plt.plot(sol[:,0], sol[:,2])
+plt.title("x2 (u')")
+plt.legend(["Approximated","scipy solve_bvp","shooting method"])
+plt.xlabel("t")
+plt.ylabel("x2")
+plt.show()
 
+plt.figure(figsize=(13,5))
+plt.plot(sol[:,0], sol[:,3])
+plt.plot(sol[:,0], sol[:,4])
+plt.title("Sensitivities")
+plt.legend(["dx1/ds","dx2/ds"])
+plt.xlabel("t")
+plt.ylabel("S")
+plt.show()
 
-
+print(sol[-1,3])
