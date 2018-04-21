@@ -27,22 +27,16 @@ def poisson9(m):
 	A = 1/6*(m+1)**2*(sp.sparse.kron(I,S)+sp.sparse.kron(S,I))
 	return A
 
-print(poisson5(3).todense())
-
-def rhs_fun(f,x,y,g,mod=0):
+def rhs_fun(f,x,y,g,mod):
 	'''
 	This calculates the right hand-side used to solved the system Au=f for the poisson equation in a
 	2D square domain, it is for the function "solve_sys". 
 	'''
-	m = x.shape[0] -2
-	h = 1/(x.shape[0]+1)
-
 	elems = f(x,y)
-	he = np.array([[0,1,0],[1,-4,1],[0,1,0]])
-	rhs = elems - (1/(6*h**2))*g 
+	rhs = (elems+mod) - g 
 	return rhs.flatten()
 
-def solve_sys(f,x,y,g,m,method='5-point'):
+def solve_sys(f,x,y,g,m,mod,method='5-point'):
 	'''
 	This function solves the a 2D problem with a square domain [a ; b] x [c ; d], using
 	either the 5-point Laplacian or 9-point Laplacian, with specified parameters:
@@ -61,7 +55,7 @@ def solve_sys(f,x,y,g,m,method='5-point'):
 	if method == '5-point':
 		return spsolve(poisson5(m), rhs_fun(f,y,y,g))
 	elif method == '9-point':
-		return spsolve(poisson9(m), rhs_fun(f,x,y,g))
+		return spsolve(poisson9(m), rhs_fun(f,x,y,g,mod))
 
 def u_excact_0(x,y):
 	# Test function used to evaluate convergence rate
@@ -80,7 +74,7 @@ def u_excact_1(x,y):
 
 def lap_u_excact_1(x,y):
 
-	return 0*np.ones(x.shape)
+	return 4*np.ones(x.shape)
 	
 def u_excact_2(x,y):
 	# Test function used to evaluate convergence rate
