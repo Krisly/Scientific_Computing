@@ -1,6 +1,7 @@
 import numpy as np
+from numba import jit
 
-def cgls( A,b,x0 = 'None',maxIter=100):
+def cgls( A,b,x0 = 'None',maxIter=1000):
     '''
      The cgls function use an iterative method to solve a Linear system of the form
      Ax=b
@@ -15,18 +16,18 @@ def cgls( A,b,x0 = 'None',maxIter=100):
      OUTPUT
         X : Is a matrix containing a soltion for each iteration hence a matrix
             with as many rows as A and colums as maxIter
-    ''' 
+     
 
     # Sets x0 if not provided (as the zero vector)
     if x0 == 'None':
         x0 = np.zeros((A.shape[1],1))
-     
+    '''     
     # Check data type of the System-Matrix
     if not isinstance(A,np.matrix):
         print('Wrong Data Type: A must be a matrix')
         raise
     
-    # Checks thats the right-hand side is a vector
+    # Checks thats the right-hand side is a vectord
     if not isinstance(b,np.matrix):
         error('Wring Data Type: b must be a vector (np.matrix)')
         raise  
