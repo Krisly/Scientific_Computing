@@ -142,10 +142,26 @@ def u_excact_1(x,y):
 	return x**2+y**2
 
 def lap_u_excact_1(x,y):
-
+    # Returns the laplacian of test function excat_1
+    
 	return 4*np.ones(x.shape)
 	
 def u_excact_2(x,y):
 	# Test function used to evaluate convergence rate
 
 	return np.sin(2*np.pi*np.abs(x-y)**(2.5))
+
+def Amult(U,m):    
+    # Matrix less matrix product
+    
+    h = 1/(m+1)
+    U = U.reshape(m,m)
+    f = np.zeros(U.shape)
+    
+    f = -(1/(h**2))*(U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:] - 4*U[1:-1,1:-1])
+    return f.flatten()
+    
+def UR():
+    # Underer relaxion of the Jacobian
+    
+    
