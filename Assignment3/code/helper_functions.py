@@ -6,36 +6,106 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.mplot3d import axes3d
 from scipy.sparse.linalg import spsolve
+from scipy import signal
+from scipy import misc
+
+
+def cgls( A,b,x0 = 'None',maxIter=1000):
+    '''
+     The cgls function use an iterative method to solve a Linear system of the form
+     Ax=b
+    
+     INPUT ARGUMENTS
+       A       : Is the system matrix 
+       b       : Is the vector containing the information of the right-hand side
+       maxIter : The number of iterations for the algoritmen to tun through
+       xk      : A start guess for the algoritment if not provided the zero vector will be 
+                 assumed!!
+
+     OUTPUT
+        X : Is a matrix containing a soltion for each iteration hence a matrix
+            with as many rows as A and colums as maxIter
+     
+
+    # Sets x0 if not provided (as the zero vector)
+    if x0 == 'None':
+        x0 = np.zeros((A.shape[1],1))
+    '''     
+    # Check data type of the System-Matrix
+    if not isinstance(A,np.matrix):
+        print('Wrong Data Type: A must be a matrix')
+        raise
+    
+    # Checks thats the right-hand side is a vectord
+    if not isinstance(b,np.matrix):
+        error('Wring Data Type: b must be a vector (np.matrix)')
+        raise  
+    
+    # Check the maximum number of iterations
+    if maxIter < 1:
+        error('Maximum iterations cannot be less than one')
+        raise
+    
+    # Makes sure the right hand side is a column vector 
+    if b.shape[0]<b.shape[1]:
+       b = b.T
+
+    # Makes sure the initial guess is a column vector 
+    if x0.shape[0]<x0.shape[1]:
+        x0 = x0.T
+    
+    C = A.shape[0]               # Gets the number of columns of A
+    sol = np.zeros((C,maxIter))  # Preallocates the matrix X
+    
+    r = b - A*x0
+    p = A.T*r
+    norm = p.T*p;
+    
+    for i in  range(maxIter): 
+        # Updates the initial guess, x0 and r.
+        temp_p = A*p
+        ak = (norm/(temp_p.T*temp_p)).item()
+        x0 = x0+ak*p
+        r = r-ak*temp_p
+        p2 = A.T*r;
+    
+        # Updates the vector d
+        nn = p2.T*p2
+        beta = (nn/norm).item()
+        norm = nn
+        p = p2 + beta*p;
+        
+        # Saves the solution to X
+        sol[:,i]=x0.T;
+    return sol
 
 def poisson5(m):
 	# Calculates the 5-point Laplacian system matrix A
-
 	e = np.repeat(1,m)
 	S = sp.sparse.spdiags(np.array([e,-2*e,e]),np.array([-1,0,1]),m,m)
 	I = sp.sparse.eye(m)
-	A = sp.sparse.kron(I,S)+ sp.sparse.kron(S,I)
+	A = sp.sparse.kron(I,S) + sp.sparse.kron(S,I)
 	A =(m+1)**2*A
 	return A
 
 def poisson9(m):
 	# Calculates the 9-point Laplacian system matrix A
-	
 	e = np.repeat(1,m)
 	S = sp.sparse.spdiags(np.array([-e, -10*e ,-e]), np.array([-1, 0, 1]), m, m)
 	I = sp.sparse.spdiags(np.array([-1/2*e, e ,-1/2*e]), np.array([-1, 0 ,1]), m, m)
 	A = 1/6*(m+1)**2*(sp.sparse.kron(I,S)+sp.sparse.kron(S,I))
 	return A
 
-def rhs_fun(fun,x,y,u):
+def rhs_fun(f,x,y,g,mod):
 	'''
 	This calculates the right hand-side used to solved the system Au=f for the poisson equation in a
 	2D square domain, it is for the function "solve_sys". 
 	'''
-
-	rhs = fun(x,y)
+	elems = f(x,y)
+	rhs = (elems+mod) - g 
 	return rhs.flatten()
 
-def solve_sys(fun,u,m,ep,method='5-point'):
+def solve_sys(f,x,y,g,m,mod,method='5-point'):
 	'''
 	This function solves the a 2D problem with a square domain [a ; b] x [c ; d], using
 	either the 5-point Laplacian or 9-point Laplacian, with specified parameters:
@@ -52,32 +122,46 @@ def solve_sys(fun,u,m,ep,method='5-point'):
 	'''
 
 	if method == '5-point':
-		Nx = Ny = m
-		x = np.linspace(ep[0], ep[1], Nx)
-		y = np.linspace(ep[2], ep[3], Ny)
-		X, Y = np.meshgrid(x, y)
-		return X,Y,spsolve(poisson5(m), rhs_fun(fun,X,Y,u))
+		return spsolve(poisson5(m), rhs_fun(f,y,y,g))
 	elif method == '9-point':
-		Nx = Ny = m
-		x = np.linspace(ep[0], ep[1], Nx)
-		y = np.linspace(ep[2], ep[3], Ny)
-		X, Y = np.meshgrid(x, y)
-		return X,Y,spsolve(poisson9(m), rhs_fun(fun,X,Y,u))
+		return spsolve(poisson9(m), rhs_fun(f,x,y,g,mod))
 
-def test_fun(x,y):
+def u_excact_0(x,y):
 	# Test function used to evaluate convergence rate
 
 	return np.sin(4*np.pi*(x+y))+np.cos(4*np.pi*x*y)
 
-def test_fun1(x,y):
+def lap_u_excact_0(x,y):
+	# Test function used to evaluate convergence rate
+
+	return -16*np.pi**2*(2*np.sin(4*np.pi*(x+y))+np.cos(4*np.pi*x*y)*(x**2+y**2))
+
+def u_excact_1(x,y):
 	# Test function used to evaluate convergence rate
 
 	return x**2+y**2
 
-def lap_test_fun1(x,y):
-	return 2*x+2*y
+def lap_u_excact_1(x,y):
+    # Returns the laplacian of test function excat_1
+    
+	return 4*np.ones(x.shape)
 	
-def test_fun2(x,y):
+def u_excact_2(x,y):
 	# Test function used to evaluate convergence rate
 
 	return np.sin(2*np.pi*np.abs(x-y)**(2.5))
+
+def Amult(U,m):    
+    # Matrix less matrix product
+    
+    h = 1/(m+1)
+    U = U.reshape(m,m)
+    f = np.zeros(U.shape)
+    
+    f = -(1/(h**2))*(U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:] - 4*U[1:-1,1:-1])
+    return f.flatten()
+    
+def UR():
+    # Underer relaxion of the Jacobian
+    
+    
