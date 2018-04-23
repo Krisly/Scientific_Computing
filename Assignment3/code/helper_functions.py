@@ -9,7 +9,6 @@ from scipy.sparse.linalg import spsolve
 from scipy import signal
 from scipy import misc
 
-
 def cgls( A,b,x0 = 'None',maxIter=1000):
     '''
      The cgls function use an iterative method to solve a Linear system of the form
@@ -96,16 +95,19 @@ def poisson9(m):
 	A = 1/6*(m+1)**2*(sp.sparse.kron(I,S)+sp.sparse.kron(S,I))
 	return A
 
-def rhs_fun(f,x,y,g,mod):
+def rhs_fun(f,x,y,g):
 	'''
 	This calculates the right hand-side used to solved the system Au=f for the poisson equation in a
 	2D square domain, it is for the function "solve_sys". 
 	'''
-	elems = f(x,y)
-	rhs = (elems+mod) - g 
+	fv    = f(x,y)
+	h     = 1/(x.shape[0]+1)
+	f_lp5 = (h**2/12)*(fv[0:-2,1:-1]+fv[2:,1:-1]+fv[1:-1,0:-2]+fv[1:-1,2:]-4*fv[1:-1,1:-1])	 			# 5-point laplacian of right-hand side
+	print(g.shape)
+	rhs   = (fv[1:-1,1:-1]+f_lp5) - g 
 	return rhs.flatten()
 
-def solve_sys(f,x,y,g,m,mod,method='5-point'):
+def solve_sys(f,x,y,g,m,method='5-point'):
 	'''
 	This function solves the a 2D problem with a square domain [a ; b] x [c ; d], using
 	either the 5-point Laplacian or 9-point Laplacian, with specified parameters:
@@ -124,7 +126,7 @@ def solve_sys(f,x,y,g,m,mod,method='5-point'):
 	if method == '5-point':
 		return spsolve(poisson5(m), rhs_fun(f,y,y,g))
 	elif method == '9-point':
-		return spsolve(poisson9(m), rhs_fun(f,x,y,g,mod))
+		return spsolve(poisson9(m), rhs_fun(f,x,y,g))
 
 def u_excact_0(x,y):
 	# Test function used to evaluate convergence rate
@@ -164,4 +166,71 @@ def Amult(U,m):
 def UR():
     # Underer relaxion of the Jacobian
     
+    return 0
+    
+def plot_pois(X,Y, u,f):
+    # Poisson plot function
+    
+    m = X.shape[0]-2
+    fig   = plt.figure(figsize=(15,10))
+    ax    = fig.gca(projection='3d')
+    ax.plot_surface(X[1:-1,1:-1],
+				Y[1:-1,1:-1],
+				u.reshape(m,m), 
+				rstride=3, 
+				cstride=3, 
+				alpha=0.7,
+				label='Solved')
+
+    ax.plot_surface(X[1:-1,1:-1], 
+				Y[1:-1,1:-1], 
+				f(X[1:-1,1:-1],Y[1:-1,1:-1]),
+				rstride=3, 
+				cstride=3, 
+				alpha=0.4,
+				color='green',
+				label='True')
+
+    cset  = ax.contour(X[1:-1,1:-1],
+				   Y[1:-1,1:-1], 
+				   u.reshape(m,m), 
+				   zdir='z', 
+				   offset=np.amin(u), 
+				   cmap=cm.coolwarm)
+
+    cset  = ax.contour(X[1:-1,1:-1], 
+                        Y[1:-1,1:-1], 
+                    u.reshape(m,m), 
+                    zdir='x', 
+				   offset=0, 
+                    cmap=cm.coolwarm)
+
+    cset  = ax.contour(X[1:-1,1:-1], 
+                    Y[1:-1,1:-1], 
+                    u.reshape(m,m), 
+                    zdir='y', 
+                    offset=0, 
+                    cmap=cm.coolwarm)
+
+    #ax.legend()
+    plt.plot(Y,X,color='blue')
+    plt.plot(X,Y,color='orange')
+    ax.set_xlabel('X')
+    ax.set_xlim(0, 1)
+    ax.set_ylabel('Y')
+    ax.set_ylim(0, 1)
+    ax.set_zlabel('Z')
+    ax.set_zlim(np.amin(u), np.amax(u))
+    plt.show()
+    
+def err_plot(h,sol,s_order=0,e_order=4):
+    plt.loglog(h,sol,label='Data')
+    
+    for i in range(s_order,e_order,1):
+        plt.loglog(h,(h)**(i),label=r'$O(h^{})$'.format(i))
+    
+    plt.legend(loc='best')
+    plt.show()
+
+
     
