@@ -8,8 +8,8 @@ Created on Thu Apr  5 15:34:45 2018
 
 import numpy as np
 from scipy import integrate
+import matplotlib
 from matplotlib import pyplot as plt
-from Runge_Kutta_methods import Runge_Kutta
 from scipy.integrate import ode
 
 # lec 14 - 24
@@ -33,7 +33,7 @@ def single_shoot(fun, bcond, t, param):
         sol.append([t, *y])
     solver.set_solout(solout)
 
-    sigma = 4
+    sigma = a
     x0 = [a, sigma]
     sol = []
 
@@ -45,17 +45,13 @@ def single_shoot(fun, bcond, t, param):
     
     conv = False
     dsigma = None
-    ntol = 1e-2
+    ntol = 1e-4
     it = 1
     while not conv:
-        #print("asdasdasdasd")
-        sigma_prev = sigma
-        resid_prev = resid        
-        #print(sigma)
-        #print(resid)
-        
-        if (dsigma == None):
-            sigma = 3
+        sigma_prev = sigma   
+        ysprev = sol[-1,1]
+        if (it == 1):
+            sigma = 2*a
             dsigma = sigma - sigma_prev
             x0 = [a, sigma]
             sol = []
@@ -66,8 +62,6 @@ def single_shoot(fun, bcond, t, param):
             
             resid = sol[-1,1] - b
         else:
-
-            
             x0 = [a, sigma]
             sol = []
             
@@ -76,10 +70,9 @@ def single_shoot(fun, bcond, t, param):
             sol = np.array(sol)
             
             resid = sol[-1,1] - b
-            
-            #sigma = sigma + resid/(resid-resid_prev)
-            #print(resid/(resid-resid_prev))
-        sigma = sigma - resid/((resid-resid_prev)/(dsigma))
+        dys = sol[-1,1] - ysprev
+        print(it, sigma, resid, dys, dsigma)
+        sigma = sigma - resid/((dys)/(dsigma))/2
         dsigma = sigma - sigma_prev
         if (abs(resid)<ntol or it > 100):
             conv = True
@@ -88,7 +81,7 @@ def single_shoot(fun, bcond, t, param):
     return sigma
 t1 = 0
 t2 = 1
-nsamp = 50
+nsamp = 1000
 t = np.linspace(t1, t2, nsamp)
 dt = (t2-t1)/nsamp
 
@@ -102,23 +95,12 @@ w0 = 0.5*(t1-t2+b-a)
 x1_approx = t - xmean + w0*np.tanh(w0*(t-xmean)/(2*e))
 x2_approx = 1 + (w0**2 * (1/np.cosh((w0 * (t - xmean))/(2 * e))**2))/(2 * e)
 
-#plt.plot(t,x1_approx)
-#plt.plot(t,x2_approx)
-#plt.title('Provided approx')
-#plt.show()
-
 param = [a,b,e]
 
 results = integrate.solve_bvp(lambda t,x: fun(t,x,param), lambda ua,ub: bc(ua,ub,param), t, [x1_approx, x2_approx])
 
-#plt.plot(results.x, results.y[0])
-#plt.plot(results.x, results.y[1])
-#plt.title('scipy solve_bvp')
-#plt.show()
-
-
 sigma = single_shoot(fun, [a, b], [t1, t2], param)
-
+print(sigma)
 x0 = np.array([a, sigma])
 
 solver = ode(fun).set_integrator('dopri5')
@@ -131,11 +113,6 @@ solver.set_initial_value(x0, t1).set_f_params(param)
 solver.integrate(t2)
 
 sol = np.array(sol)
-#plt.plot(sol[:,0], sol[:,1])
-#plt.plot(sol[:,0], sol[:,2])
-#plt.title('DOPRI IVP, x=' + str(x0[0]) + ", x'=" + str(x0[1]))
-#plt.show()
-
 
 
 def Derivatives(t,x,p):
@@ -147,15 +124,11 @@ def Derivatives(t,x,p):
 def modelAndSens(t,z,p):
     x = z[:-2]
     sp = np.array(z[-2:])
-    #sp = np.reshape(sp,[2,2])
     xdot = fun(t,x,p)
     dfdx, dfdp = Derivatives(t,x,p)
     dfdx = np.reshape(dfdx,[2,2])
-    #print(np.asmatrix(dfdx) * np.asmatrix(sp).T)
     Spdot = (np.asmatrix(dfdx)*np.asmatrix(sp).T).T + dfdp
     zdot = np.concatenate([xdot, np.asarray(Spdot.flatten()).flatten()])
-    #print(zdot)
-    #print(type(zdot))
     return zdot
 
 def qwe(t,x,p):
@@ -178,33 +151,42 @@ solver.integrate(t2)
 
 sol = np.array(sol)
 
-plt.figure(figsize=(13,5))
-plt.plot(t,x1_approx)
-plt.plot(results.x, results.y[0],"g--")
-plt.plot(sol[:,0], sol[:,1])
-plt.title("x1 (u)")
-plt.legend(["Approximated","scipy solve_bvp","shooting method"])
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : 20}
+
+matplotlib.rc('font', **font)
+
+plt.figure(figsize=(15,5))
+plt.plot(t,x1_approx, linewidth=2.0)
+plt.plot(sol[:,0], sol[:,1], linewidth=2.0)
+plt.plot(results.x, results.y[0],"g--", linewidth=2.0)
+plt.title("$x_1 (u)$")
+plt.legend(["Approximated","shooting method","scipy solve_bvp"])
 plt.xlabel("t")
-plt.ylabel("x1")
+plt.ylabel("$x_1$")
+plt.savefig('1-2-1.eps', format='eps', dpi=500, bbox_inches='tight')
 plt.show()
 
-plt.figure(figsize=(13,5))
-plt.plot(t,x2_approx)
-plt.plot(results.x, results.y[1],"g--")
-plt.plot(sol[:,0], sol[:,2])
-plt.title("x2 (u')")
-plt.legend(["Approximated","scipy solve_bvp","shooting method"])
+plt.figure(figsize=(15,5))
+plt.plot(t,x2_approx, linewidth=2.0)
+plt.plot(sol[:,0], sol[:,2], linewidth=2.0)
+plt.plot(results.x, results.y[1],"g--", linewidth=2.0)
+plt.title("$x_2 (u')$")
+plt.legend(["Approximated","shooting method","scipy solve_bvp"])
 plt.xlabel("t")
-plt.ylabel("x2")
+plt.ylabel("$x_2$")
+plt.savefig('1-2-2.eps', format='eps', dpi=500, bbox_inches='tight')
 plt.show()
 
-plt.figure(figsize=(13,5))
-plt.plot(sol[:,0], sol[:,3])
-plt.plot(sol[:,0], sol[:,4])
+plt.figure(figsize=(15,5))
+plt.plot(sol[:,0], sol[:,3], linewidth=2.0)
+plt.plot(sol[:,0], sol[:,4], linewidth=2.0)
 plt.title("Sensitivities")
-plt.legend(["dx1/ds","dx2/ds"])
+plt.legend(["$\\frac{\\partial x_1}{\\partial \\sigma}$","$\\frac{\\partial x_2}{\\partial \\sigma}$"],fontsize=30)
 plt.xlabel("t")
 plt.ylabel("S")
+plt.savefig('1-2-3.eps', format='eps', dpi=500, bbox_inches='tight')
 plt.show()
 
 print(sol[-1,3])
