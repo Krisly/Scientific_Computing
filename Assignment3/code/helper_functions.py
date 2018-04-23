@@ -8,6 +8,7 @@ from mpl_toolkits.mplot3d import axes3d
 from scipy.sparse.linalg import spsolve
 from scipy import signal
 from scipy import misc
+from numpy.linalg import inv
 
 def cgls( A,b,x0 = 'None',maxIter=1000):
     '''
@@ -103,7 +104,6 @@ def rhs_fun(f,x,y,g):
 	fv    = f(x,y)
 	h     = 1/(x.shape[0]+1)
 	f_lp5 = (h**2/12)*(fv[0:-2,1:-1]+fv[2:,1:-1]+fv[1:-1,0:-2]+fv[1:-1,2:]-4*fv[1:-1,1:-1])	 			# 5-point laplacian of right-hand side
-	print(g.shape)
 	rhs   = (fv[1:-1,1:-1]+f_lp5) - g 
 	return rhs.flatten()
 
@@ -126,6 +126,7 @@ def solve_sys(f,x,y,g,m,method='5-point'):
 	if method == '5-point':
 		return spsolve(poisson5(m), rhs_fun(f,y,y,g))
 	elif method == '9-point':
+#		return inv(poisson9(m).todense())*np.asmatrix(rhs_fun(f,x,y,g)).T
 		return spsolve(poisson9(m), rhs_fun(f,x,y,g))
 
 def u_excact_0(x,y):
@@ -156,12 +157,12 @@ def u_excact_2(x,y):
 def Amult(U,m):    
     # Matrix less matrix product
     
-    h = 1/(m+1)
     U = U.reshape(m,m)
-    f = np.zeros(U.shape)
     
-    f = -(1/(h**2))*(U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:] - 4*U[1:-1,1:-1])
-    return f.flatten()
+    for i in range(1000):
+        U[1:-1,1:-1] = -1*(1/4)*(U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:])
+    
+    return U.flatten()
     
 def UR():
     # Underer relaxion of the Jacobian
@@ -231,6 +232,7 @@ def err_plot(h,sol,s_order=0,e_order=4):
     
     plt.legend(loc='best')
     plt.show()
-
-
+    
+    
+    
     
