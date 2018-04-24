@@ -156,13 +156,11 @@ def u_excact_2(x,y):
 
 def Amult(U,m):    
     # Matrix less matrix product
-    
     U = U.reshape(m,m)
-    
-    for i in range(1000):
-        U[1:-1,1:-1] = -1*(1/4)*(U[0:-2,1:-1] + U[2:,1:-1] + U[1:-1,0:-2] + U[1:-1,2:])
-    
-    return U.flatten()
+    h = 1/(m+1)
+    se = np.array([[0,1,0],[1,-4,1],[0,1,0]])
+    U = signal.convolve2d(U,se,mode='same')
+    return ((-1/h**2)*U).flatten()
     
 def UR():
     # Underer relaxion of the Jacobian
@@ -235,4 +233,51 @@ def err_plot(h,sol,s_order=0,e_order=4):
     
     
     
+def MS_cgls(m,b,x0 = 'None',maxIter=1000):
+    '''
+     The cgls function use an iterative method to solve a Linear system of the form
+     Ax=b
     
+     INPUT ARGUMENTS
+       A       : Is the system matrix 
+       b       : Is the vector containing the information of the right-hand side
+       maxIter : The number of iterations for the algoritmen to tun through
+       xk      : A start guess for the algoritment if not provided the zero vector will be 
+                 assumed!!
+
+     OUTPUT
+        X : Is a matrix containing a soltion for each iteration hence a matrix
+            with as many rows as A and colums as maxIter
+     
+
+    # Sets x0 if not provided (as the zero vector)
+    if x0 == 'None':
+        x0 = np.zeros((A.shape[1],1))
+    '''   
+    x0 = np.asmatrix(x0.flatten()).T
+    sol = np.zeros((m**2,maxIter))  # Preallocates the matrix X
+    
+    r = np.asmatrix(b - Amult(x0,m)).T
+    p = np.asmatrix(Amult(r,m)).T
+    norm = p.T*p;
+    for i in  range(maxIter): 
+        # Updates the initial guess, x0 and r.
+        temp_p = np.asmatrix(Amult(p,m)).T
+        ak = (norm/(temp_p.T*temp_p)).item()
+        x0 = x0+ak*p
+        r = r-ak*temp_p
+        p2 = np.asmatrix(Amult(r,m)).T;
+    
+        # Updates the vector d
+        nn = p2.T*p2
+        beta = (nn/norm).item()
+        norm = nn
+        p = p2 + beta*p;
+        
+    # Returns the solution to X
+    return x0.T
+
+def smooth(U,omega,m,F):
+    return (1-omega)*U + omega*(1 + U)
+
+print(poisson5(3).todense())
