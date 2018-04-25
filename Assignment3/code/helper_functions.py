@@ -179,9 +179,10 @@ def UR():
     return 0
 
 def coarsen(R,m):
-    return R[::2,::2]
+    return R[1::2,1::2]
 
 def interp(Rc,m):
+    #Rc = np.asmatrix(Rc)
     x = np.linspace(0,1,Rc.shape[0])
     y = np.linspace(0,1,Rc.shape[0])
     f = interpolate.interp2d(x, y, Rc, kind='linear')
@@ -302,7 +303,11 @@ def smooth(U,omega,m,F):
 
 def smooth_2d(U,omega,m,F):
     h = 1/(m+1)
-    return (1-omega)*U + omega*(1 + (h**2/12)*Amult(U,m)-(h**2/12)*F)
+    print(U.shape,F.shape)
+    A1 = (1-omega)*U
+    A2 = 1 + (h**2/12)*np.asmatrix(Amult(U,m)).T
+    A3 = (h**2/12)*np.asmatrix(F).T
+    return A1 + omega*(A2 - A3)
 
 def form_rhs(a, b, m, fun, funlap, u):
     h = (b-a)/(m + 1)
@@ -337,7 +342,7 @@ def form_rhs(a, b, m, fun, funlap, u):
 
 
 
-A,f = lap9(0, 1, 100, u_excact_0, lap_u_excact_0, u_excact_0)
-ts = cg(A,f)
+#A,f = lap9(0, 1, 100, u_excact_0, lap_u_excact_0, u_excact_0)
+#ts = cg(A,f)
 
     
