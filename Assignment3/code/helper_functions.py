@@ -9,7 +9,11 @@ from scipy.sparse.linalg import spsolve
 from scipy import signal
 from scipy import misc
 from numpy.linalg import inv
+<<<<<<< HEAD
 from scipy.sparse.linalg import cg
+=======
+from scipy import interpolate
+>>>>>>> f5206792277dd3e1602a4201097c2feaebf68f55
 
 def cgls( A,b,x0 = 'None',maxIter=1000):
     '''
@@ -176,6 +180,15 @@ def UR():
     # Underer relaxion of the Jacobian
     
     return 0
+
+def coarsen(R,m):
+    return R[::2,::2]
+
+def interp(Rc,m):
+    x = np.linspace(0,1,Rc.shape[0])
+    y = np.linspace(0,1,Rc.shape[0])
+    f = interpolate.interp2d(x, y, Rc, kind='linear')
+    return f(np.linspace(0,1,Rc.shape[0]*2), np.linspace(0,1,Rc.shape[0]*2))
     
 def plot_pois(X,Y, u,f):
     # Poisson plot function

@@ -15,28 +15,34 @@ from scipy.integrate import ode
 # lec 14 - 24
 
 def fun(t,x,p):
+    # the IVP version of the BVP problem
     e = p[2]
     dxdt = np.array([x[1], -x[0]*(x[1]-1)/e])
     return dxdt
 
 def bc(ua, ub, p):
+    # boundary conditions residuals
     return np.array([ua[0]-p[0], ub[0]-p[1]])
 
 def single_shoot(fun, bcond, t, param):
+    # single shooting solver
+    
     t1 = t[0]
     t2 = t[1]
     a = bcond[0]
     b = bcond[1]
 
+    # set SciPy solver options
     solver = ode(fun).set_integrator('dopri5')
     def solout(t, y):
         sol.append([t, *y])
     solver.set_solout(solout)
 
-    sigma = a
+    sigma = 3
     x0 = [a, sigma]
     sol = []
 
+    # initial integration
     solver.set_initial_value(x0, t1).set_f_params(param)
     solver.integrate(t2)    
     sol = np.array(sol)
@@ -48,10 +54,14 @@ def single_shoot(fun, bcond, t, param):
     ntol = 1e-4
     it = 1
     while not conv:
+        # Newton loop
+        
         sigma_prev = sigma   
         ysprev = sol[-1,1]
         if (it == 1):
-            sigma = 2*a
+            # on the first iteration, we need to solve the system once more
+            # with a different value of sigma, to calculate the derivative
+            sigma = 4
             dsigma = sigma - sigma_prev
             x0 = [a, sigma]
             sol = []
@@ -62,6 +72,7 @@ def single_shoot(fun, bcond, t, param):
             
             resid = sol[-1,1] - b
         else:
+            # normal operation, solve for the new sigma and calculate residuals
             x0 = [a, sigma]
             sol = []
             
@@ -72,13 +83,16 @@ def single_shoot(fun, bcond, t, param):
             resid = sol[-1,1] - b
         dys = sol[-1,1] - ysprev
         print(it, sigma, resid, dys, dsigma)
+        # update sigma value using Newton's method and first order finite diff
         sigma = sigma - resid/((dys)/(dsigma))/2
         dsigma = sigma - sigma_prev
         if (abs(resid)<ntol or it > 100):
+            # check convergence, limit maximum iterations
             conv = True
         it += 1
     print ("iterations: " + str(it))
     return sigma
+
 t1 = 0
 t2 = 1
 nsamp = 1000
@@ -91,18 +105,21 @@ e = 0.1
 
 xmean = 0.5*(t1+t2-a-b)
 w0 = 0.5*(t1-t2+b-a)
-
+# function approximation
 x1_approx = t - xmean + w0*np.tanh(w0*(t-xmean)/(2*e))
 x2_approx = 1 + (w0**2 * (1/np.cosh((w0 * (t - xmean))/(2 * e))**2))/(2 * e)
 
 param = [a,b,e]
 
+# scipy integration, for comparison
 results = integrate.solve_bvp(lambda t,x: fun(t,x,param), lambda ua,ub: bc(ua,ub,param), t, [x1_approx, x2_approx])
 
+# calculate correct sigma using developed shooting method
 sigma = single_shoot(fun, [a, b], [t1, t2], param)
 print(sigma)
 x0 = np.array([a, sigma])
 
+# solve the IVP with the calculated sigma
 solver = ode(fun).set_integrator('dopri5')
 
 sol = []
@@ -116,12 +133,14 @@ sol = np.array(sol)
 
 
 def Derivatives(t,x,p):
+    # sensitivity derivatives
     e = p[2]
     dfdx = np.array([0, 1, -(x[1]-1)/e, -x[0]/e])
     dfdp = np.array([0, 0])
     return dfdx, dfdp
 
 def modelAndSens(t,z,p):
+    # common function for model & sensitivities
     x = z[:-2]
     sp = np.array(z[-2:])
     xdot = fun(t,x,p)
@@ -131,11 +150,8 @@ def modelAndSens(t,z,p):
     zdot = np.concatenate([xdot, np.asarray(Spdot.flatten()).flatten()])
     return zdot
 
-def qwe(t,x,p):
-    return 5
 
 x0 = np.array([a, sigma, 0, 1])
-
 
 solver = ode(modelAndSens).set_integrator('dopri5')
 
@@ -151,9 +167,11 @@ solver.integrate(t2)
 
 sol = np.array(sol)
 
+fscale = 1.5
+
 font = {'family' : 'normal',
         'weight' : 'normal',
-        'size'   : 20}
+        'size'   : 20*fscale}
 
 matplotlib.rc('font', **font)
 
@@ -165,7 +183,7 @@ plt.title("$x_1 (u)$")
 plt.legend(["Approximated","shooting method","scipy solve_bvp"])
 plt.xlabel("t")
 plt.ylabel("$x_1$")
-plt.savefig('1-2-1.eps', format='eps', dpi=500, bbox_inches='tight')
+#plt.savefig('1-4-10.eps', format='eps', dpi=500, bbox_inches='tight')
 plt.show()
 
 plt.figure(figsize=(15,5))
@@ -176,17 +194,17 @@ plt.title("$x_2 (u')$")
 plt.legend(["Approximated","shooting method","scipy solve_bvp"])
 plt.xlabel("t")
 plt.ylabel("$x_2$")
-plt.savefig('1-2-2.eps', format='eps', dpi=500, bbox_inches='tight')
+#plt.savefig('1-4-11.eps', format='eps', dpi=500, bbox_inches='tight')
 plt.show()
 
 plt.figure(figsize=(15,5))
 plt.plot(sol[:,0], sol[:,3], linewidth=2.0)
 plt.plot(sol[:,0], sol[:,4], linewidth=2.0)
 plt.title("Sensitivities")
-plt.legend(["$\\frac{\\partial x_1}{\\partial \\sigma}$","$\\frac{\\partial x_2}{\\partial \\sigma}$"],fontsize=30)
+plt.legend(["$\\frac{\\partial x_1}{\\partial \\sigma}$","$\\frac{\\partial x_2}{\\partial \\sigma}$"],fontsize=30*fscale)
 plt.xlabel("t")
 plt.ylabel("S")
-plt.savefig('1-2-3.eps', format='eps', dpi=500, bbox_inches='tight')
+#plt.savefig('1-4-12.eps', format='eps', dpi=500, bbox_inches='tight')
 plt.show()
 
 print(sol[-1,3])
