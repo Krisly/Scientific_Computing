@@ -9,6 +9,7 @@ from scipy.sparse.linalg import spsolve
 from scipy import signal
 from scipy import misc
 from numpy.linalg import inv
+from scipy.sparse.linalg import cg
 
 def cgls( A,b,x0 = 'None',maxIter=1000):
     '''
@@ -106,7 +107,16 @@ def rhs_fun(f,x,y,g):
 	f_lp5 = (h**2/12)*(fv[0:-2,1:-1]+fv[2:,1:-1]+fv[1:-1,0:-2]+fv[1:-1,2:]-4*fv[1:-1,1:-1])	 			# 5-point laplacian of right-hand side
 	rhs   = (fv[1:-1,1:-1]+f_lp5) - g 
 	return rhs.flatten()
+'''
+def rhs_fun2(f,x,y,g):
 
+	fv    = f(x,y)
+	h     = 1/(x.shape[0]+1)
+	se    = np.array([[0,1,0],[1,-4,1],[0,1,0]])
+	f_lp5 = (h**2/12)*scipy.signal.convolve2d(fv)	 			# 5-point laplacian of right-hand side
+	rhs   = (fv[1:-1,1:-1]+f_lp5) - g 
+	return rhs.flatten()
+'''
 def solve_sys(f,x,y,g,m,method='5-point'):
 	'''
 	This function solves the a 2D problem with a square domain [a ; b] x [c ; d], using
@@ -124,7 +134,7 @@ def solve_sys(f,x,y,g,m,method='5-point'):
 	'''
 
 	if method == '5-point':
-		return spsolve(poisson5(m), rhs_fun(f,y,y,g))
+		return spsolve(poisson5(m), rhs_fun(f,x,y,g))
 	elif method == '9-point':
 #		return inv(poisson9(m).todense())*np.asmatrix(rhs_fun(f,x,y,g)).T
 		return spsolve(poisson9(m), rhs_fun(f,x,y,g))
@@ -178,7 +188,7 @@ def plot_pois(X,Y, u,f):
 				u.reshape(m,m), 
 				rstride=3, 
 				cstride=3, 
-				alpha=0.7,
+				alpha=1.0,
 				label='Solved')
 
     ax.plot_surface(X[1:-1,1:-1], 
@@ -280,4 +290,44 @@ def MS_cgls(m,b,x0 = 'None',maxIter=1000):
 def smooth(U,omega,m,F):
     return (1-omega)*U + omega*(1 + U)
 
-print(poisson5(3).todense())
+def smooth_2d(U,omega,m,F):
+    h = 1/(m+1)
+    return (1-omega)*U + omega*(1 + (h**2/12)*Amult(U,m)-(h**2/12)*F)
+
+def lap9(a, b, m, fun, funlap, u):
+    h = (b-a)/(m + 1)
+    # Creating A
+    A = poisson9(m)
+
+    # Creating F
+    x = np.arange(a,b-h,h)
+    print(len(x))
+    y = np.flip(x,axis=0)
+    print(x,y)
+    X, Y = np.meshgrid(x, y)
+
+    # Error correction
+    F = fun(X, Y) + funlap(X, Y)*h**2/12
+    print(F.shape)
+    # Adding boundary conditions
+    for i in range(m):
+        print(i)
+        F[0,i]   = F[0,i]   - (4*u(x[i], b) + u(x[i]-h, b) + u(x[i]+h, b))/(h**2*6)
+        F[m-1,i] = F[m-1,i] - (4*u(x[i], a) + u(x[i]-h, a) + u(x[i]+h, a))/(h**2*6)
+        F[i,0]   = F[i,0]   - (4*u(a, y[i]) + u(a, y[i]-h) + u(a, y[i]+h))/(h**2*6)
+        F[i,m-1] = F[i,m-1] - (4*u(b, y[i]) + u(b, y[i]-h) + u(b, y[i]+h))/(h**2*6)
+
+    # The corners had boundary conditions added twice, so one is removed
+    F[0, 0]      = F[0, 0]     + u(a,b)/(h**2*6)
+    F[m-1, 0]    = F[m-1, 0]   + u(a,a)/(h**2*6)
+    F[m-1, m-2]  = F[m-1, m-1] + u(b,a)/(h**2*6)
+    F[0, m-1]    = F[0, m-1]   + u(b,b)/(h**2*6)
+    
+    return A,F.flatten()
+
+
+
+A,f = lap9(0, 1, 100, u_excact_0, lap_u_excact_0, u_excact_0)
+ts = cg(A,f)
+
+    
