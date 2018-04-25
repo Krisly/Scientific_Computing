@@ -9,11 +9,8 @@ from scipy.sparse.linalg import spsolve
 from scipy import signal
 from scipy import misc
 from numpy.linalg import inv
-<<<<<<< HEAD
 from scipy.sparse.linalg import cg
-=======
 from scipy import interpolate
->>>>>>> f5206792277dd3e1602a4201097c2feaebf68f55
 
 def cgls( A,b,x0 = 'None',maxIter=1000):
     '''
@@ -307,10 +304,10 @@ def smooth_2d(U,omega,m,F):
     h = 1/(m+1)
     return (1-omega)*U + omega*(1 + (h**2/12)*Amult(U,m)-(h**2/12)*F)
 
-def lap9(a, b, m, fun, funlap, u):
+def form_rhs(a, b, m, fun, funlap, u):
     h = (b-a)/(m + 1)
     # Creating A
-    A = poisson9(m)
+    #A = poisson9(m)
 
     # Creating F
     x = np.arange(a,b-h,h)
@@ -336,7 +333,7 @@ def lap9(a, b, m, fun, funlap, u):
     F[m-1, m-2]  = F[m-1, m-1] + u(b,a)/(h**2*6)
     F[0, m-1]    = F[0, m-1]   + u(b,b)/(h**2*6)
     
-    return A,F.flatten()
+    return F.flatten()
 
 
 
