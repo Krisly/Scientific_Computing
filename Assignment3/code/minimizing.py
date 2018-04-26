@@ -22,7 +22,7 @@ def eigenvalues_2d_lap(m,omega):
     h = 1/(m+1)
     for i in range(idx,m):
         for j in range(idx,m):
-            ypq[i-idx,j-idx] = (1-omega) + omega*((np.cos((i+1)*np.pi*h)-1) + (np.cos((j+1)*np.pi*h)-1))
+            ypq[i-idx,j-idx] = (1-omega) +(1/2)*omega*((np.cos((i+1)*np.pi*h)) + (np.cos((j+1)*np.pi*h)))
     return np.max(np.abs(ypq.flatten()))
 
 def eigenvalues_2d_lap_ret(m,omega):
@@ -45,9 +45,15 @@ yp = np.zeros((n,len(m)))
 # print(ypq.shape)
 h = 1/(m+1)
 #omega=1
+plt.figure(figsize=(15,10))
+
 for i in range(len(m)):
     for j in range(len(omega)):
-        yp[j,i] = eigenvalues_1d_lap(m[i],omega[j])
-    
-plt.plot(omega,yp)
+        yp[j,i] = eigenvalues_2d_lap(m[i],omega[j])
+for i in range(len(m)):
+	plt.plot(omega,yp[:,i],label='Grid size {}'.format(m[i]))
+plt.legend(loc='best',fontsize=20)
+plt.xticks(fontsize=20)
+plt.yticks(fontsize=20)
+plt.savefig("./eigenvalues.pdf")
 plt.show()
