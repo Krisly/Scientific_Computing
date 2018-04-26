@@ -7,9 +7,8 @@ b = 1;
 U =zeros(m,m);
 
 F =form_rhs(a,b,m,f,u); %% TODO: Form the right-hand side
-%[A, F] = lap9(0, 1, m, f, 0, u);
 
-QQ = nma_V_cycle(U,F,3,3,2);
+QQ = Vcycle(U,F,3,2);
 
 
 

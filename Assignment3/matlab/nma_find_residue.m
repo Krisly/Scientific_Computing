@@ -15,7 +15,7 @@ function r = nma_find_residue( u , f)
 % Math 228a, UC Davis, Fall 2010
 %
 
-nma_validate_dimensions(u,f);
+%nma_validate_dimensions(u,f);
 
 [n,~]=size(u);
 h = 1/(n-1);
